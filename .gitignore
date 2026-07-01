@@ -1,0 +1,10 @@
+# lean
+.lake
+
+# nix
+.direnv
+result
+
+**/.DS_Store
+**/._*
+

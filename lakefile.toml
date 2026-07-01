@@ -1,0 +1,15 @@
+name = "leandy"
+version = "0.1.0"
+defaultTargets = ["Leandy"]
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+
+[[lean_lib]]
+name = "Leandy"
+
+[[lean_lib]]
+name = "Protocols"
+globs = ["Protocols.+"]
+
