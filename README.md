@@ -45,3 +45,5 @@ lake build Protocols.SimpleAuth
 lake build Protocols.PaymentChannel
 ```
 
+## Publications
+Full technical report avaiable on [arxiv](http://arxiv.org/abs/2607.03406).
