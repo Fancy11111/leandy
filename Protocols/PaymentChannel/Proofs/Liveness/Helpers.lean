@@ -213,6 +213,9 @@ section Liveness
               simp [List.get_blockchain] at hfull_gt_rest
           | Corrupt p =>
               simp [List.get_blockchain] at hfull_gt_rest
+          | PrivMsgSent n m =>
+              -- a private message is not a block; the chain does not grow
+              simp [List.get_blockchain] at hfull_gt_rest
 
 
   inductive DefenseSelector (tr:𝑇 Unit Nonce) : 𝕖xchange → 𝕥 → 𝕥 → Prop where

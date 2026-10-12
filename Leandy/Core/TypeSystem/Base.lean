@@ -33,7 +33,6 @@ inductive HasLabel (Γ : LabelingEnv α η) (tr : 𝑇 α η) : 𝐵 α η → �
   | PubKey {k:𝕜}: k.isPublic → HasLabel Γ tr x l →  HasLabel Γ tr (.key _ k x) 𝓟ub
   | PrivKey {k:𝕜}: k.isPrivate → HasLabel Γ tr x l →  HasLabel Γ tr (.key _ k x) l
   | Fail : HasLabel Γ tr .fail 𝓟ub
-  | PrivMsgSent (chan:η) (msg:𝐵 α η) (hin: .PrivMsgSent chan msg ∈ tr): Γ.Λ {chan} = l →  HasLabel Γ tr msg l
   -- | Subsumption {l l' : ℓ α η} : HasLabel Γ tr x l' → (l <=[tr] l') → HasLabel Γ tr x l
 attribute [simp] HasLabel.Fail
 
@@ -51,16 +50,8 @@ namespace HasLabel
     · obtain ⟨hp, a₀, b₀, ha₀f, hb₀f, hn⟩ := proj_1_fail _ _ hf
       simp only [ne_eq, not_false_eq_true, proj_1_tuple, hp, hb₀f, hn]
       induction h <;> try (discriminate_bytes at hn; done )
-      · obtain ⟨⟨⟩,⟨⟩, ⟨⟩⟩ := tuple_inj _ _ _ _ _ _ (by grind) hn
-        grind
-      · expose_names
-        apply BytesEq._use_disscriminant_to_discriminate' at msg
-        obtain ⟨hd, haf, hbf⟩ := h
-        exists 𝓟ub
-        apply?
-        -- try simp [haf, hbf] at hd
-        -- case' ha => try (first| left; assumption | right; assumption | left; prove_not_fail; done | right; prove_not_fail; done)
-
+      obtain ⟨⟨⟩,⟨⟩, ⟨⟩⟩ := tuple_inj _ _ _ _ _ _ (by grind) hn
+      grind
 
   lemma Proj_2 {p l} (a:𝐵 α η) (h:HasLabel Γ tr a l): ∃ l', l <=[tr] l' ∧ HasLabel Γ tr (proj_2 p a) l' := by
     by_cases hf: (proj_2 p a) = fail

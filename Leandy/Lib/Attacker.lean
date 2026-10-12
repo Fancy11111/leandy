@@ -161,6 +161,14 @@ namespace Attacker
         aapply HasLabelAt.Xor
         rw[<- LabelAt.public_atldef] at *
         aapply Γ.Λ_valid
+      | @PrivMsgSent chan m hin hchan hchan_ih =>
+        rw[<- is_public_is_HasLabelAt_pub]
+        obtain ⟨_, hflow⟩ := valid_trace_mem _ _ _ hv hin
+        have hΛ : Γ.Λ {chan} ☢ tr := by
+          apply HasLabelAt.rev_xor at hchan_ih
+          rw[<- LabelAt.public_atldef] at hchan_ih
+          exact hchan_ih
+        exact hflow tr (le_refl tr) hΛ
 
     /-- All messages that can be sent by the attacker are valid -/
     theorem attacker_valid (hv: valid_trace Γ tr):
@@ -170,6 +178,9 @@ namespace Attacker
       case valid =>
         induction hatt
         case Published m hm => have := valid_trace_mem _ _ _ hv hm; grind
+        case PrivMsgSent chan m hin hchan hchan_ih =>
+          obtain ⟨hvalid, _⟩ := valid_trace_mem _ _ _ hv hin
+          exact hvalid
         case Fail | Initial | Const | Key | Tuple | Proj_1 | Proj_2 | SymDec | ADec | Verify| Zero | Xor =>
              prove_valid_bytes
         case Hash => prove_valid_bytes; left; aapply attacker_sound

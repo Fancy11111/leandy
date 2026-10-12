@@ -253,7 +253,7 @@ theorem valid_aliceRelease (a b :  ℙ) (tr : 𝑇 Unit String) : valid_exchange
     obtain ⟨ _, _,_ ⟩ := hs₁
     exists a, b, msg'
 
-set_option maxHeartbeats 400000
+set_option maxHeartbeats 450000
 theorem valid_bobEnd (a b :  ℙ) (tr : 𝑇 Unit String) : valid_exchange.alt (Γ a b) tr (bobEnd a b) := by
   intro_valid_exchange' for bobEnd with input hi₁ hi₂ state hs₁
   rename_i input _ _ _ _ _ _ -- gne
