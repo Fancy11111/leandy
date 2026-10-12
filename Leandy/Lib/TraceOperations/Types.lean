@@ -14,6 +14,8 @@ section
     message: 𝐵 α η := .fail
     /-- The new state -/
     state: up.u_state :=  by exact default
+    -- QUESTION: how should this look
+    -- priv_message: Option (η × 𝐵 α η) := none
     /-- a list of evenets triggered -/
     events: List (𝑇𝐸 α η) := []
     /-- list of events to trigger *after* the message is sent and the state is set -/
@@ -28,6 +30,7 @@ section
 
     inductive UpTo where
     | Message | State | Event | PostEvents | Full
+    -- | PrivMsg
     deriving DecidableEq, Repr
 
     instance : Inhabited UpTo := ⟨.Full⟩
@@ -39,6 +42,7 @@ section
     | .Message =>  a.events
     | .PostEvents => .MsgSent a.message :: .SetState (up.u_state_parse.serialize a.state):: a.events
     | .Full => a.post_events ++ .MsgSent a.message :: .SetState (up.u_state_parse.serialize a.state):: a.events
+    -- | .PrivMsg => a.events
   end Atom
 end
 
@@ -68,6 +72,7 @@ structure ValidExchange (msg : 𝐵 α η) state (evs postevs: 𝑇 α η) where
     := by prove_is_valid_public
   valid_state  : valid_state Γ state (evs ++ tr)
   valid_restrictions : up.u_restrictions
+    -- (postevs ++ .MsgSent msg :: .PrivMsgSent c /- this c adds a parameter -/ msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr) := by trivial
     (postevs ++ .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr) := by trivial
   valid_events : (∀ ev ∈ evs, valid_trace_event Γ ev tr)
     := by rintro _ ⟨⟩

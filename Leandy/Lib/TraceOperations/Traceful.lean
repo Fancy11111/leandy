@@ -8,6 +8,8 @@ variable {α η} [DecidableEq α] [DecidableEq η] [Parameter α] [up: UserPreds
 structure ChoiceFn where
   msg (tr: Trace α η) : { m: 𝐵 α η // (.MsgSent m) ∈ tr }
   state (tr: Trace α η) : { m: 𝐵 α η // (.SetState m) ∈ tr }
+  -- REVIEW: how should this be handled? how does the channel get passed
+  -- privMsg (tr: Trace α η) : { m: 𝐵 α η // (.PrivMsgSent chan? m) ∈ tr }
 
 abbrev Traceful (α η) [DecidableEq α] [DecidableEq η] [Parameter α] a :=
   ReaderT (ChoiceFn (α := α) (η := η)) (StateT (Trace α η) Option) a

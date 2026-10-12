@@ -457,14 +457,15 @@ section user_preds
     /- ev ∈ tr ∧ -/ (match ev with
     | MsgSent m => m.ValidPublicBytes Γ tr
     /-
-      REVIEW: maybe change
+      question: does ∀ statement need to change from
       Γ.Λ {chan} ☢ tr' → m.is_public Γ tr'
       to
       Γ.Λ {chan} ☢ tr → m.is_public Γ tr'
+
     -/
     | PrivMsgSent chan m =>
         valid_bytes Γ m tr ∧
-        ∀ tr': 𝑇 α η, tr ≤ tr' → (Γ.Λ {chan} ☢ tr' → m.is_public Γ tr')
+        ∀ tr': 𝑇 α η, tr ≤ tr' → Γ.Λ {chan} ☢ tr' → m.is_public Γ tr'
     | SetState s => match up.u_state_parse.parse s with
       | some s =>  valid_state Γ s tr
       | none => False
