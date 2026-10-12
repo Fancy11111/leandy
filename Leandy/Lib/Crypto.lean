@@ -456,6 +456,15 @@ section user_preds
   abbrev valid_trace_event : Prop :=
     /- ev ∈ tr ∧ -/ (match ev with
     | MsgSent m => m.ValidPublicBytes Γ tr
+    /-
+    A message sent on the private channel `chan`. The message must be
+    well formed, and at least as public as the channel: whoever can read
+    the channel identifier (i.e. whenever `Γ.Λ {chan}` is corrupt, e.g.
+    after `Corrupt p` for a channel typed `𝓟 p`) may also read `m`.
+    -/
+    | PrivMsgSent chan m =>
+        valid_bytes Γ m tr ∧
+        ∀ tr': 𝑇 α η, tr ≤ tr' → (Γ.Λ {chan} ☢ tr' → m.is_public Γ tr')
     | SetState s => match up.u_state_parse.parse s with
       | some s =>  valid_state Γ s tr
       | none => False
@@ -463,13 +472,24 @@ section user_preds
     | .Corrupt _ => True)
 
   lemma valid_trace_event_monotone: Monotone (valid_trace_event Γ ev) := by
-    rintro _ _  _ rhs; cases ev <;> simp only [valid_trace_event] at *
+    rintro ha hb  hl rhs; cases ev <;> simp only [valid_trace_event] at *
     · aapply BytesEq.ValidPublicBytes.monotone
     · split at rhs;
       aapply valid_state_monotone
       trivial
     · aapply valid_event_monotone
+    · and_intros -- TODO: simplify this proof
+      · obtain ⟨h_ass, _⟩ := rhs
+        aapply valid_bytes_monotone
+      · obtain ⟨_, h_ass⟩ := rhs;
+        intro tr' hle hchan
+        exact h_ass tr' (le_trans hl hle) hchan
 
+  lemma valid_trace_event_privMsgSent (n : η) (msg : 𝐵 α η)
+      (hvalid : valid_bytes Γ msg tr) (hpub : msg.is_public Γ tr) :
+      valid_trace_event Γ (.PrivMsgSent n msg) tr := by
+    simp only [valid_trace_event]
+    exact ⟨hvalid, λ tr' hle' _ => is_public_monotone Γ msg hle' hpub⟩
   -- abbrev valid_trace (tr: 𝑇 α η): Prop :=
   --   match tr with
   --   | [] => True
@@ -492,14 +512,21 @@ section user_preds
       replace ih := ih htl
       cases ev <;> simp only [valid_trace_event] at *
       case' SetState => split <;> simp only [*] at *
+      case' PrivMsgSent n m =>
+        refine ⟨valid_bytes_monotone Γ m (List.suffix_cons hd tl) ih.1, ?_⟩
+        intro tr' hle' hchan'
+        exact ih.2 tr' (List.IsSuffix.trans (List.suffix_cons hd tl) hle') hchan'
       all_goals (
         have := λ (x:𝐵 α η) ↦ valid_bytes_monotone Γ x (List.suffix_cons hd tl)
         have := λ (e) ↦ valid_event_monotone Γ e (List.suffix_cons hd tl);
         have := λ (s) ↦ valid_state_monotone Γ s (List.suffix_cons hd tl);
+        have := λ (c: η) (x:𝐵 α η) ↦ valid_bytes_monotone Γ x (List.suffix_cons hd tl)
         try tauto
       )
       aapply BytesEq.ValidPublicBytes.monotone
       aapply List.suffix_cons
+
+
 
   lemma valid_trace_antitone : Antitone (valid_trace Γ) := by
     intro tr tr' htr h

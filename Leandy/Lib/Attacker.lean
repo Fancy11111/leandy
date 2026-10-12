@@ -83,6 +83,9 @@ namespace Attacker
       (hrec_m: AttackerKnows m)
       (hrec_k: AttackerKnows k):
         AttackerKnows (.adec p m k)
+    | PrivMsgSent {chan m}
+      (h_in: .PrivMsgSent chan m ∈ tr) (h_chan: AttackerKnows (.nonce chan)):
+        AttackerKnows (m)
   end
   section attacker_soundness
     variable [up: UserPreds α η] (Γ: LabelingEnv α η) (tr: 𝑇 α η)
