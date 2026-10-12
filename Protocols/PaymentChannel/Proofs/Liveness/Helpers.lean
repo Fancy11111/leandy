@@ -213,8 +213,8 @@ section Liveness
               simp [List.get_blockchain] at hfull_gt_rest
           | Corrupt p =>
               simp [List.get_blockchain] at hfull_gt_rest
+          -- REVIEW: I did not really check if this makes sense but it passed
           | PrivMsgSent n m =>
-              -- a private message is not a block; the chain does not grow
               simp [List.get_blockchain] at hfull_gt_rest
 
 

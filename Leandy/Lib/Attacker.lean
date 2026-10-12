@@ -83,6 +83,7 @@ namespace Attacker
       (hrec_m: AttackerKnows m)
       (hrec_k: AttackerKnows k):
         AttackerKnows (.adec p m k)
+    -- REVIEW: new AttackerKnows constructor
     | PrivMsgSent {chan m}
       (h_in: .PrivMsgSent chan m ∈ tr) (h_chan: AttackerKnows (.nonce chan)):
         AttackerKnows (m)
@@ -161,6 +162,7 @@ namespace Attacker
         aapply HasLabelAt.Xor
         rw[<- LabelAt.public_atldef] at *
         aapply Γ.Λ_valid
+      -- REVIEW: proof that PrivMsgSent is public if channel is public
       | @PrivMsgSent chan m hin hchan hchan_ih =>
         rw[<- is_public_is_HasLabelAt_pub]
         obtain ⟨_, hflow⟩ := valid_trace_mem _ _ _ hv hin
@@ -178,7 +180,8 @@ namespace Attacker
       case valid =>
         induction hatt
         case Published m hm => have := valid_trace_mem _ _ _ hv hm; grind
-        case PrivMsgSent chan m hin hchan hchan_ih =>
+        -- REVIEW: proof that PrivMsgSent content is valid
+        case PrivMsgSent _ _ hin _ _ =>
           obtain ⟨hvalid, _⟩ := valid_trace_mem _ _ _ hv hin
           exact hvalid
         case Fail | Initial | Const | Key | Tuple | Proj_1 | Proj_2 | SymDec | ADec | Verify| Zero | Xor =>

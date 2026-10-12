@@ -27,6 +27,7 @@ inductive TraceEvent (α η : Type) [eqα: DecidableEq α] [eqβ: DecidableEq η
   | Corrupt (principal: ℙ) : TraceEvent α η
   | SetState (content: 𝐵 α η) : TraceEvent α η
   | Event (e: Event α η):  TraceEvent α η
+  -- REVIEW: new trace event
   | PrivMsgSent (chan : η) (msg : 𝐵 α η) : TraceEvent α η
   -- deriving Repr
 
@@ -48,6 +49,7 @@ namespace TraceEvent
     · simp
       rename_i a b
       aapply Event.instDecidableEq a b
+    -- REVIEW: new branch
     · simp; exact instDecidableAnd
 
   def content (e: TraceEvent α η) : Option (𝐵 α η) :=
@@ -55,6 +57,7 @@ namespace TraceEvent
     | TraceEvent.MsgSent msg => some msg
     | TraceEvent.SetState msg => some msg
     | TraceEvent.Event ({content,..}) => some content
+    -- REVIEW: new branch
     | TraceEvent.PrivMsgSent _ msg => some msg
     | _ => none
 end TraceEvent
