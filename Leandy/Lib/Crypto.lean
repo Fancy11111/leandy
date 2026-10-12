@@ -457,10 +457,10 @@ section user_preds
     /- ev ∈ tr ∧ -/ (match ev with
     | MsgSent m => m.ValidPublicBytes Γ tr
     /-
-    A message sent on the private channel `chan`. The message must be
-    well formed, and at least as public as the channel: whoever can read
-    the channel identifier (i.e. whenever `Γ.Λ {chan}` is corrupt, e.g.
-    after `Corrupt p` for a channel typed `𝓟 p`) may also read `m`.
+      TODO: maybe change
+      Γ.Λ {chan} ☢ tr' → m.is_public Γ tr'
+      to
+      Γ.Λ {chan} ☢ tr → m.is_public Γ tr'
     -/
     | PrivMsgSent chan m =>
         valid_bytes Γ m tr ∧
