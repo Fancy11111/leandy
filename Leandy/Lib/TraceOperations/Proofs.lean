@@ -5,13 +5,15 @@ open TraceEvent Crypto
 variable {α η} [DecidableEq α] [DecidableEq η] [Parameter α] [up: UserPreds α η] (Γ : LabelingEnv α η) (tr : Trace α η)
 
 open Traceful in
-def transition (op : exchange α η) : Traceful α η Unit := do
+def transition /- chanIn: η -/ (op : exchange α η)  : Traceful α η Unit := do
   let input <- recv
   let state <- getState
-  let ⟨msg, newState, evs, postev⟩ := op (<- getTime) input state
+  -- let privMsg <- recvPriv chanIn 
+  let ⟨msg, newState, evs, postev /-, chanOut, privMsg -/⟩ := op (<- getTime) input state
   triggerEvents evs
   saveState newState
   send msg
+  -- sendPriv chanOut privMsg
   triggerEvents postev
 
 theorem transition_valid {ch: ChoiceFn}

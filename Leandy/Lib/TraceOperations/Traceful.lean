@@ -9,7 +9,7 @@ structure ChoiceFn where
   msg (tr: Trace α η) : { m: 𝐵 α η // (.MsgSent m) ∈ tr }
   state (tr: Trace α η) : { m: 𝐵 α η // (.SetState m) ∈ tr }
   -- REVIEW: how should this be handled? how does the channel get passed
-  -- privMsg (tr: Trace α η) : { m: 𝐵 α η // (.PrivMsgSent chan? m) ∈ tr }
+  -- privMsg (tr: Trace α η) (chan: η)  : { m: 𝐵 α η // (.PrivMsgSent chan m) ∈ tr }
 
 abbrev Traceful (α η) [DecidableEq α] [DecidableEq η] [Parameter α] a :=
   ReaderT (ChoiceFn (α := α) (η := η)) (StateT (Trace α η) Option) a
@@ -23,6 +23,8 @@ namespace Traceful
 
   abbrev send (m: BytesEq α η) : Traceful α η Unit :=
     modify ((.MsgSent m) :: ·)
+
+  -- TODO: privRecv + privSend
 
   abbrev saveState (st: up.u_state) : Traceful α η Unit :=
     modify ((.SetState $ up.u_state_parse.serialize st) :: ·)

@@ -15,7 +15,8 @@ section
     /-- The new state -/
     state: up.u_state :=  by exact default
     -- QUESTION: how should this look
-    -- priv_message: Option (η × 𝐵 α η) := none
+    -- priv_message: 𝐵 α η := .fail
+    -- chan : η := by exact default
     /-- a list of evenets triggered -/
     events: List (𝑇𝐸 α η) := []
     /-- list of events to trigger *after* the message is sent and the state is set -/
@@ -24,6 +25,7 @@ section
   attribute [aesop (rule_sets := [split_cf]) norm] Atom.ext_iff
 
   abbrev exchange := (i: ℕ) → (m : 𝐵 α η) → (s : up.u_state) → Atom α η
+  -- TODO: priv message + channel
 
   namespace Atom
     variable {α η} [DecidableEq α] [DecidableEq η] [Parameter α] [up: UserPreds α η] (Γ : LabelingEnv α η) (tr : Trace α η)
@@ -68,6 +70,7 @@ end Atom
 
 @[aesop (rule_sets := [type_system]) safe 1100 constructors ]
 structure ValidExchange (msg : 𝐵 α η) state (evs postevs: 𝑇 α η) where
+-- TODO: priv_msg chan parameters
   valid_public_bytes  : HasValidPublic.instBytesEq.is_valid_public Γ msg (evs ++ tr)
     := by prove_is_valid_public
   valid_state  : valid_state Γ state (evs ++ tr)
@@ -79,6 +82,7 @@ structure ValidExchange (msg : 𝐵 α η) state (evs postevs: 𝑇 α η) where
   valid_post_events : (∀ ev ∈ postevs, valid_trace_event Γ ev
     (.MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr))
     := by rintro _ ⟨⟩
+  -- TODO: valid_priv_msg : (look at valid_monotone)
 
 namespace ValidExchange
   structure Alt (msg : 𝐵 α η) state (evs postevs: 𝑇 α η) where
@@ -94,6 +98,7 @@ namespace ValidExchange
     valid_post_events : (∀ ev ∈ postevs, valid_trace_event Γ ev
       (.MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr))
       := by rintro _ ⟨⟩
+    -- TODO:
 
   @[aesop (rule_sets := [type_system]) norm ]
   lemma Alt_def Γ tr (msg : 𝐵 α η) state evs postevs:
@@ -106,9 +111,12 @@ end ValidExchange
 open HasValidPublic in
 @[aesop (rule_sets := [type_system]) norm]
 abbrev valid_exchange  (op : exchange α η) :=
-  ∀ {msg} {newState} {evs} {postevs},
+  -- TODO:
+  ∀ {msg} {newState} /- {privMsg} {chan} -/ {evs} {postevs},
     (input : 𝐵 α η) → (hi: is_valid_public Γ input tr) →
+    -- hp: is_valid_private_message)
     (state : up.u_state) → (hs₁ : valid_state Γ state tr) →
+    -- add privMsg and chan
     (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs} = op tr.length input state) →
       ValidExchange Γ tr msg newState evs postevs
 
