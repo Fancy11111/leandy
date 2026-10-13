@@ -463,9 +463,9 @@ section user_preds
       Γ.Λ {chan} ☢ tr → m.is_public Γ tr'
 
     -/
-    | PrivMsgSent chan m =>
+    | PrivMsgSent chan m => ∃ l,
         valid_bytes Γ m tr ∧
-        ∀ tr': 𝑇 α η, tr ≤ tr' → Γ.Λ {chan} ☢ tr' → m.is_public Γ tr'
+        HasLabel Γ tr m l ∧  Γ.Λ {chan} ≤[tr] l
     | SetState s => match up.u_state_parse.parse s with
       | some s =>  valid_state Γ s tr
       | none => False
@@ -480,13 +480,14 @@ section user_preds
       trivial
     · aapply valid_event_monotone
     -- REVIEW: simplify this proof, feels like I'm missing something
-    · and_intros
-      · obtain ⟨h_ass, _⟩ := rhs
-        aapply valid_bytes_monotone
-      · obtain ⟨_, h_ass⟩ := rhs;
-        expose_names
-        intro tr' hle hchan
-        exact h_ass tr' (le_trans h hle) hchan
+    · rcases rhs with ⟨ l, h1, h2, h3 ⟩ 
+      exists l
+      and_intros
+      · aapply valid_bytes_monotone
+      · aapply hasLabel_monotone
+      · intro _ _ _
+        aapply h3
+        trans <;> assumption
 
   inductive valid_trace : 𝑇 α η → Prop where
   | nil (hr: up.u_restrictions []) : valid_trace []
@@ -507,9 +508,20 @@ section user_preds
       case' SetState => split <;> simp only [*] at *
       -- REVIEW: i feel like this can be simpler
       case' PrivMsgSent n m =>
-        refine ⟨valid_bytes_monotone Γ m (List.suffix_cons hd tl) ih.1, ?_⟩
-        intro tr' hle' hchan'
-        exact ih.2 tr' (List.IsSuffix.trans (List.suffix_cons hd tl) hle') hchan'
+        rcases ih with ⟨ l, h1, h2, h3 ⟩ 
+        exists l 
+        and_intros
+        aapply valid_bytes_monotone
+        apply List.suffix_cons
+        aapply hasLabel_monotone
+        apply List.suffix_cons
+        intro _ _ _
+        apply h3
+        have := List.suffix_cons hd tl
+        trans <;> assumption
+       -- refine ⟨valid_bytes_monotone Γ m (List.suffix_cons hd tl) ih.1, ?_⟩
+       -- intro tr' hle' hchan'
+       -- exact ih.2 tr' (List.IsSuffix.trans (List.suffix_cons hd tl) hle') hchan'
       all_goals (
         have := λ (x:𝐵 α η) ↦ valid_bytes_monotone Γ x (List.suffix_cons hd tl)
         have := λ (e) ↦ valid_event_monotone Γ e (List.suffix_cons hd tl);
