@@ -24,7 +24,8 @@ section
 
   attribute [aesop (rule_sets := [split_cf]) norm] Atom.ext_iff
 
-  abbrev exchange := (i: ℕ) → (m : 𝐵 α η) → (s : up.u_state) → Atom α η
+  -- abbrev exchange := (i: ℕ) → (m : 𝐵 α η) -> (s : up.u_state) → Atom α η
+  abbrev exchange := (i: ℕ) → (m : 𝐵 α η) -> (c: η) -> (privM: 𝐵 α η) -> (s : up.u_state) → Atom α η
   -- TODO: priv message + channel
 
   namespace Atom
@@ -124,7 +125,8 @@ abbrev valid_exchange  (op : exchange α η) :=
     -- hp: is_valid_private_message)
     (state : up.u_state) → (hs₁ : valid_state Γ state tr) →
     -- add privMsg and chan
-    (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input state) →
+    (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input chan privMsg state) →
+    -- (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input state) →
       ValidExchange Γ tr msg privMsg newState evs postevs chan
 
 namespace valid_exchange
@@ -136,7 +138,8 @@ namespace valid_exchange
       (hr: up.u_restrictions tr) →
       (input : 𝐵 α η) → (hi: is_valid_public Γ input tr) → (hi_in: .MsgSent input ∈ tr) →
       (state : up.u_state) → (hs : valid_state Γ state tr) →
-      (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input state) →
+      -- (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input state) →
+      (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input chan privMsg state) →
         ValidExchange Γ tr msg privMsg newState evs postevs chan
 
   -- @[aesop (rule_sets := [type_system]) norm]
@@ -144,7 +147,8 @@ namespace valid_exchange
     ∀ {msg} {privMsg} {newState} {evs} {postevs} {chan},
       (input : 𝐵 α η) → (hi₁: valid_bytes Γ input tr) → (hi₂: input.is_public Γ tr) →
       (state : up.u_state) → (hs : valid_state Γ state tr) →
-      (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input state) →
+      (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input chan privMsg state) →
+      -- (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input state) →
         ValidExchange.Alt Γ tr msg privMsg newState evs postevs chan
 
   @[aesop (rule_sets := [type_system]) norm]
@@ -153,7 +157,8 @@ namespace valid_exchange
       (hr: up.u_restrictions tr) →
       (input : 𝐵 α η) → (hi₁: valid_bytes Γ input tr) → (hi₂: input.is_public Γ tr) → (hi_in: .MsgSent input ∈ tr) →
       (state : up.u_state) → (hs : valid_state Γ state tr) →
-      (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input state) →
+      -- (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input state) →
+      (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input chan privMsg state) →
         ValidExchange.Alt Γ tr msg privMsg newState evs postevs chan
 
   lemma weaken_to_full: (valid_exchange Γ tr op) → (valid_exchange.full Γ tr op)  := by tauto
@@ -187,11 +192,11 @@ macro "intro_valid_exchange" : tactic =>
     )
 
 open Lean in
-syntax "intro_valid_exchange'" "for" ident ("with" rintroPat rintroPat rintroPat rintroPat rintroPat)?: tactic
+syntax "intro_valid_exchange'" "for" ident ("with" rintroPat rintroPat rintroPat rintroPat rintroPat rintroPat rintroPat)?: tactic
 macro_rules
-  | `(tactic| intro_valid_exchange' for $name with $input $hi₁ $hi₂ $state $hs₁) =>
+  | `(tactic| intro_valid_exchange' for $name with $input $privInput $hi₁ $hi₂ $state $hs₁ $chanIn) =>
     `(tactic|
-      rintro msg newState evs postevs $input $hi₁ $hi₂ $state $hs₁ hstep;
+      rintro msg privMsg chan newState evs postevs $input $privInput $hi₁ $hi₂ $state $hs₁ hstep $chanIn;
       unfold $name at * ; simp_all;
       (repeat' split at hstep)
         <;> (try constructor) <;> (
@@ -205,4 +210,4 @@ macro_rules
           (try trivial)
         )
     )
-  | `(tactic| intro_valid_exchange' for $name) => `(tactic| intro_valid_exchange' for $name with _ _ _ _ _)
+  | `(tactic| intro_valid_exchange' for $name) => `(tactic| intro_valid_exchange' for $name with _ _ _ _ _ _ _)
