@@ -72,12 +72,9 @@ end Atom
 
 @[aesop (rule_sets := [type_system]) safe 1100 constructors ]
 structure ValidExchange (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α η) (chan : η) where
--- TODO: priv_msg chan parameters
   valid_public_bytes  : HasValidPublic.instBytesEq.is_valid_public Γ msg (evs ++ tr)
     := by prove_is_valid_public
   valid_state  : valid_state Γ state (evs ++ tr)
-  -- matches the order in which `transition` appends to the trace:
-  -- triggerEvents evs; saveState; send msg; sendPriv chan privMsg; triggerEvents postevs
   valid_restrictions : up.u_restrictions
     (postevs ++ .PrivMsgSent chan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr) := by trivial
   valid_events : (∀ ev ∈ evs, valid_trace_event Γ ev tr)
@@ -85,12 +82,6 @@ structure ValidExchange (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α �
   valid_post_events : (∀ ev ∈ postevs, valid_trace_event Γ ev
     (.PrivMsgSent chan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr))
     := by rintro _ ⟨⟩
-  /--
-    Constructive validity of the private output event. This is the append
-    obligation for `.PrivMsgSent chan privMsg` (the leak gate for the public
-    output is already `valid_public_bytes`: a priv message that is not public
-    cannot be passed through to the public channel since `is_public` fails).
-  -/
   valid_priv_msg : ∃ l,
     valid_bytes Γ privMsg (evs ++ tr) ∧
     HasLabel Γ (evs ++ tr) privMsg l ∧
@@ -127,68 +118,76 @@ open HasValidPublic in
 @[aesop (rule_sets := [type_system]) norm]
 abbrev valid_exchange  (op : exchange α η) :=
   -- TODO:
-  ∀ {msg} {newState} {privMsg} {chan} {evs} {postevs},
-    (input : 𝐵 α η) → (hi: is_valid_public Γ input tr) →
+  ∀ {msg} {newState} {privMsg} {chanOut} {evs} {postevs},
+    (input : 𝐵 α η) -> (hi: is_valid_public Γ input tr) →
+    (chanIn : η) → (privInput : 𝐵 α η) → (hpi: valid_bytes Γ privInput tr) → 
     -- hp: is_valid_private_message)
     (state : up.u_state) → (hs₁ : valid_state Γ state tr) →
     -- add privMsg and chan
-    (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input chan privMsg state) →
+    (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chanOut} = op tr.length input chanIn privInput state) →
     -- (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input state) →
-      ValidExchange Γ tr msg privMsg newState evs postevs chan
+      ValidExchange Γ tr msg privMsg newState evs postevs chanOut
 
 namespace valid_exchange
   open HasValidPublic
 
   @[aesop (rule_sets := [type_system]) norm]
   abbrev full (op : exchange α η) :=
-    ∀ {msg} {privMsg} {newState} {evs} {postevs} {chan},
+    ∀ {msg} {privMsg} {newState} {evs} {postevs} {chanOut},
       (hr: up.u_restrictions tr) →
       (input : 𝐵 α η) → (hi: is_valid_public Γ input tr) → (hi_in: .MsgSent input ∈ tr) →
+      (chanIn: η) → (privInput : 𝐵 α η) → (hpi: valid_bytes Γ privInput tr) → (hpi_in: .PrivMsgSent chanIn privInput ∈ tr) →
       (state : up.u_state) → (hs : valid_state Γ state tr) →
       -- (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input state) →
-      (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input chan privMsg state) →
-        ValidExchange Γ tr msg privMsg newState evs postevs chan
+      (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chanOut} = op tr.length input chanIn privInput state) →
+        ValidExchange Γ tr msg privMsg newState evs postevs chanOut
 
   -- @[aesop (rule_sets := [type_system]) norm]
   abbrev alt (op : exchange α η) :=
-    ∀ {msg} {privMsg} {newState} {evs} {postevs} {chan},
+    ∀ {msg} {privMsg} {newState} {evs} {postevs} {chanOut},
       (input : 𝐵 α η) → (hi₁: valid_bytes Γ input tr) → (hi₂: input.is_public Γ tr) →
+      (chanIn: η) → (privInput : 𝐵 α η) → (hpi: valid_bytes Γ privInput tr) →
       (state : up.u_state) → (hs : valid_state Γ state tr) →
-      (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input chan privMsg state) →
+      (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chanOut} = op tr.length input chanIn privInput state) →
       -- (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input state) →
-        ValidExchange.Alt Γ tr msg privMsg newState evs postevs chan
+        ValidExchange.Alt Γ tr msg privMsg newState evs postevs chanOut
 
   @[aesop (rule_sets := [type_system]) norm]
   abbrev full_alt (op : exchange α η) :=
-    ∀ {msg} {privMsg} {newState} {evs} {postevs} {chan},
+    ∀ {msg} {privMsg} {newState} {evs} {postevs} {chanOut},
       (hr: up.u_restrictions tr) →
       (input : 𝐵 α η) → (hi₁: valid_bytes Γ input tr) → (hi₂: input.is_public Γ tr) → (hi_in: .MsgSent input ∈ tr) →
+      (chanIn: η) → (privInput : 𝐵 α η) → (hpi: valid_bytes Γ privInput tr) → (hpi_in: .PrivMsgSent chanIn privInput ∈ tr) →
       (state : up.u_state) → (hs : valid_state Γ state tr) →
       -- (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input state) →
-      (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chan} = op tr.length input chan privMsg state) →
-        ValidExchange.Alt Γ tr msg privMsg newState evs postevs chan
+      (hstep : {message:=msg, state:=newState, events:=evs, post_events:=postevs, priv_message:=privMsg, chan:=chanOut} = op tr.length input chanIn privInput state) →
+        ValidExchange.Alt Γ tr msg privMsg newState evs postevs chanOut
 
   lemma weaken_to_full: (valid_exchange Γ tr op) → (valid_exchange.full Γ tr op)  := by tauto
 
   @[aesop (rule_sets := [type_system]) norm]
   lemma alt_def: (valid_exchange.alt Γ tr op) ↔ (valid_exchange Γ tr op)  := by
     unfold valid_exchange.alt valid_exchange
-    constructor <;> intro h <;> intros
-    · rw[<- ValidExchange.Alt_def]; (rename is_valid_public _ _ _ => h); cases h;
-      aapply h
-    · rw[ValidExchange.Alt_def]
-      aapply h
-      constructor <;> assumption
+    constructor
+    · intro h msg newState privMsg chanOut evs postevs input hi chanIn privInput hpi state hs₁ hstep
+      rw [← ValidExchange.Alt_def]
+      obtain ⟨hv, hp⟩ := hi
+      exact h input hv hp chanIn privInput hpi state hs₁ hstep
+    · intro h msg privMsg newState evs postevs chanOut input hi₁ hi₂ chanIn privInput hpi state hs hstep
+      rw [ValidExchange.Alt_def]
+      exact h input ⟨hi₁, hi₂⟩ chanIn privInput hpi state hs hstep
 
   @[aesop (rule_sets := [type_system]) norm]
   lemma full_alt_def: (valid_exchange.full_alt Γ tr op) ↔ (valid_exchange.full Γ tr op)  := by
     unfold valid_exchange.full_alt valid_exchange.full
-    constructor <;> intro h <;> intros
-    · rw[<- ValidExchange.Alt_def]; (rename is_valid_public _ _ _ => h); cases h;
-      aapply h
-    · rw[ValidExchange.Alt_def]
-      aapply h
-      constructor <;> assumption
+    constructor
+    · intro h msg privMsg newState evs postevs chanOut hr input hi hi_in chanIn privInput hpi hpi_in state hs hstep
+      rw [← ValidExchange.Alt_def]
+      obtain ⟨hv, hp⟩ := hi
+      exact h hr input hv hp hi_in chanIn privInput hpi hpi_in state hs hstep
+    · intro h msg privMsg newState evs postevs chanOut hr input hi₁ hi₂ hi_in chanIn privInput hpi hpi_in state hs hstep
+      rw [ValidExchange.Alt_def]
+      exact h hr input ⟨hi₁, hi₂⟩ hi_in chanIn privInput hpi hpi_in state hs hstep
 end valid_exchange
 
 macro "intro_valid_exchange" : tactic =>
