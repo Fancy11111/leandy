@@ -139,43 +139,92 @@ namespace Traceful
                   get, getThe, MonadStateOf.get, liftM, monadLift, MonadLift.monadLift, StateT.get, ReaderT.pure] at hs
         grind
 
-  lemma recvPriv_valid_chan_label {ch: ChoiceFn} (tr: Trace α η) (chan: η)
-                            (h₀: valid_trace Γ tr) (hs : Traceful.recvPriv chan ch tr = some (a, tr'))
-                            (h₁: Γ.Λ {chan} ≤[tr] l)
-                            : HasLabel Γ tr a l' ∧ l' ≤[tr] l := by
-                            -- : a.ValidPublicBytes Γ tr := by
-                            -- : valid_trace Γ out.2 ∧ out.2 = (.SetState (up.u_state_parse.serialize m) :: tr) := by
+  lemma recvPriv_valid_chan_label {ch: ChoiceFn}
+    (tr: Trace α η) (chan: η)
+    (h₀ : valid_trace Γ tr)
+    (hs : Traceful.recvPriv chan ch tr = some (a, tr'))
+    : ∃ l, HasLabel Γ tr a l ∧ Γ.Λ {chan} ≤[tr] l := by
         simp only [recvPriv, Bind.bind, ReaderT.bind, StateT.bind, Option.bind, read, readThe, MonadReaderOf.read, ReaderT.read, pure, StateT.pure,
                   get, getThe, MonadStateOf.get, liftM, monadLift, MonadLift.monadLift, StateT.get, ReaderT.pure] at hs
         simp at hs
         obtain ⟨ha, _⟩ := hs
-        generalize hm: ch.msg tr = m at *
+        generalize hm: ch.privMsg tr chan = m at *
         obtain ⟨mval, hprop⟩ := m
-        and_intros
-        · sorry
-        · sorry
+        subst_eqs
+        simp only
+        apply valid_trace_mem at h₀
+        specialize h₀ hprop
+        grind
+  -- lemma recvPriv_valid_chan_label {ch: ChoiceFn} (tr: Trace α η) (chan: η)
+  --                           (h₀: valid_trace Γ tr) (hs : Traceful.recvPriv chan ch tr = some (a, tr'))
+  --                           (h₁: Γ.Λ {chan} ≤[tr] l)
+  --                           : HasLabel Γ tr a l' ∧ l' ≤[tr] l := by
+  --                           -- : a.ValidPublicBytes Γ tr := by
+  --                           -- : valid_trace Γ out.2 ∧ out.2 = (.SetState (up.u_state_parse.serialize m) :: tr) := by
+  --       simp only [recvPriv, Bind.bind, ReaderT.bind, StateT.bind, Option.bind, read, readThe, MonadReaderOf.read, ReaderT.read, pure, StateT.pure,
+  --                 get, getThe, MonadStateOf.get, liftM, monadLift, MonadLift.monadLift, StateT.get, ReaderT.pure] at hs
+  --       simp at hs
+  --       obtain ⟨ha, _⟩ := hs
+  --       generalize hm: ch.msg tr = m at *
+  --       obtain ⟨mval, hprop⟩ := m
+  --       and_intros
+  --       · sorry
+  --       · sorry
         -- subst_eqs
         -- apply valid_trace_mem at h₀
         -- specialize h₀ hprop
         -- grind
 
-  lemma sendPriv_valid {ch: ChoiceFn} (tr: Trace α η) (chan: η) (m : BytesEq α η) (hm: valid_bytes Γ m tr) (hp: m.is_public Γ tr)
-                            (h₀: valid_trace Γ tr) (hs : Traceful.sendPriv chan m ch tr = some tr') (hr: up.u_restrictions (.PrivMsgSent chan m :: tr))
-                            : valid_trace Γ tr'.2 ∧ tr'.2 = (.PrivMsgSent chan m :: tr) := by
+  -- lemma sendPriv_valid {ch: ChoiceFn} (tr: Trace α η) (chan: η) (m : BytesEq α η) (hm: valid_bytes Γ m tr) (hp: m.is_public Γ tr)
+  --                           (h₀: valid_trace Γ tr) (hs : Traceful.sendPriv chan m ch tr = some tr') (hr: up.u_restrictions (.PrivMsgSent chan m :: tr))
+  --                           : valid_trace Γ tr'.2 ∧ tr'.2 = (.PrivMsgSent chan m :: tr) := by
+  --       simp only [sendPriv, modify, modifyGet, MonadStateOf.modifyGet, monadLift, MonadLift.monadLift, StateT.modifyGet, pure] at hs
+  --       subst_eqs
+  --       and_intros
+  --       · constructor; assumption
+  --         apply valid_trace_event_monotone;
+  --         exact Std.IsPreorder.le_refl (PrivMsgSent chan m :: tr)
+  --         refine exists_and_left.mpr ?_
+  --         apply valid_trace_mem at h₀
+  --         and_intros
+  --         · apply valid_bytes_monotone; apply List.suffix_cons
+  --           assumption
+  --         · refine exists_exists_and_eq_and.mp ?_
+  --           sorry
+  --         exact MsgSent m
+  --         assumption
+  --       exact rfl
+  lemma sendPriv_valid {ch: ChoiceFn} {l: ℓ α η}
+    (tr: Trace α η) (chan: η) (m : BytesEq α η)
+    (hm : valid_bytes Γ m tr)
+    (hl : HasLabel Γ tr m l)
+    (hc : Γ.Λ {chan} ≤[tr] l)
+    (h₀ : valid_trace Γ tr)
+    (hs : Traceful.sendPriv chan m ch tr = some ((), tr'))
+    (hr : up.u_restrictions (.PrivMsgSent chan m :: tr))
+    : valid_trace Γ tr' ∧ tr' = (.PrivMsgSent chan m :: tr) := by
         simp only [sendPriv, modify, modifyGet, MonadStateOf.modifyGet, monadLift, MonadLift.monadLift, StateT.modifyGet, pure] at hs
         subst_eqs
         and_intros
         · constructor; assumption
-          apply valid_trace_event_monotone;
-          exact Std.IsPreorder.le_refl (PrivMsgSent chan m :: tr)
-          refine exists_and_left.mpr ?_
-          apply valid_trace_mem at h₀
-          and_intros
-          · apply valid_bytes_monotone; apply List.suffix_cons
-            assumption
-          · refine exists_exists_and_eq_and.mp ?_
-            sorry
-          exact MsgSent m
-          assumption
-        exact rfl
+          · refine valid_trace_event_monotone Γ (PrivMsgSent chan m) (by apply List.suffix_cons) ⟨l, hm, hl, hc⟩
+          · exact h₀
+        · rfl
+        -- longer version:
+        -- · constructor; assumption
+        --   apply valid_trace_event_monotone;
+        --   exact Std.IsPreorder.le_refl (.PrivMsgSent chan m :: tr)
+        --   refine exists_and_left.mpr ?_
+        --   and_intros
+        --   · aapply valid_bytes_monotone; apply List.suffix_cons
+        --   · exists l
+        --     and_intros
+        --     · refine hasLabel_monotone Γ ?_ (PrivMsgSent chan m :: tr) l m ?_ ?_
+        --       · exact tr
+        --       · exact List.suffix_cons _ _
+        --       · exact hl
+        --     · aapply Label.less_public_than_monotone
+        --       apply List.suffix_cons
+        --   · exact h₀
+        -- exact rfl
 end Traceful
