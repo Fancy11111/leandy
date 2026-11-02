@@ -68,6 +68,8 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
     ext1 <;> try rfl
     symm; sorry
     sorry; sorry
+    sorry; sorry
+    sorry
 
 
   rcases hop with ⟨⟨valid_bytes, has_label⟩, valid_state, valid_restrictions, valid_events, valid_post_events⟩

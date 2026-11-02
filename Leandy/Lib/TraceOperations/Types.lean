@@ -43,7 +43,7 @@ section
     | .State => .MsgSent a.message :: .SetState (up.u_state_parse.serialize a.state):: a.events
     | .Message =>  a.events
     | .PostEvents => .MsgSent a.message :: .SetState (up.u_state_parse.serialize a.state):: a.events
-    | .Full => a.post_events ++ .MsgSent a.message :: .SetState (up.u_state_parse.serialize a.state):: a.events
+    | .Full => a.post_events ++ .PrivMsgSent a.chan a.priv_message :: .MsgSent a.message :: .SetState (up.u_state_parse.serialize a.state):: a.events
     | .PrivMsg => .PrivMsgSent a.chan a.priv_message :: .MsgSent a.message :: .SetState (up.u_state_parse.serialize a.state):: a.events
     -- | .PrivMsg => a.events
   end Atom
@@ -76,18 +76,25 @@ structure ValidExchange (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α �
   valid_public_bytes  : HasValidPublic.instBytesEq.is_valid_public Γ msg (evs ++ tr)
     := by prove_is_valid_public
   valid_state  : valid_state Γ state (evs ++ tr)
+  -- matches the order in which `transition` appends to the trace:
+  -- triggerEvents evs; saveState; send msg; sendPriv chan privMsg; triggerEvents postevs
   valid_restrictions : up.u_restrictions
-    -- (postevs ++ .MsgSent msg :: .PrivMsgSent c /- this c adds a parameter -/ msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr) := by trivial
-    (postevs ++ .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr) := by trivial
+    (postevs ++ .PrivMsgSent chan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr) := by trivial
   valid_events : (∀ ev ∈ evs, valid_trace_event Γ ev tr)
     := by rintro _ ⟨⟩
   valid_post_events : (∀ ev ∈ postevs, valid_trace_event Γ ev
-    (.MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr))
-    := by rintro _ ⟨⟩
-  -- TODO: valid_priv_msg : (look at valid_monotone)
-  valid_priv_msg : (∀ ev ∈ postevs, valid_trace_event Γ ev
     (.PrivMsgSent chan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr))
     := by rintro _ ⟨⟩
+  /--
+    Constructive validity of the private output event. This is the append
+    obligation for `.PrivMsgSent chan privMsg` (the leak gate for the public
+    output is already `valid_public_bytes`: a priv message that is not public
+    cannot be passed through to the public channel since `is_public` fails).
+  -/
+  valid_priv_msg : ∃ l,
+    valid_bytes Γ privMsg (evs ++ tr) ∧
+    HasLabel Γ (evs ++ tr) privMsg l ∧
+    Γ.Λ {chan} ≤[evs ++ tr] l
 
 namespace ValidExchange
   structure Alt (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α η) (chan : η) where
@@ -97,16 +104,16 @@ namespace ValidExchange
       := by prove_is_public
     valid_state  : Crypto.valid_state Γ state (evs ++ tr)
     valid_restrictions : up.u_restrictions
-      (postevs ++ .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr)
+      (postevs ++ .PrivMsgSent chan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr)
     valid_events : (∀ ev ∈ evs, valid_trace_event Γ ev tr)
       := by rintro _ ⟨⟩
     valid_post_events : (∀ ev ∈ postevs, valid_trace_event Γ ev
-      (.MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr))
-      := by rintro _ ⟨⟩
-    -- TODO:
-    valid_priv_msg : (∀ ev ∈ postevs, valid_trace_event Γ ev
       (.PrivMsgSent chan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr))
       := by rintro _ ⟨⟩
+    valid_priv_msg : ∃ l,
+      Crypto.valid_bytes Γ privMsg (evs ++ tr) ∧
+      HasLabel Γ (evs ++ tr) privMsg l ∧
+      Γ.Λ {chan} ≤[evs ++ tr] l
 
   @[aesop (rule_sets := [type_system]) norm ]
   lemma Alt_def Γ tr (msg privMsg: 𝐵 α η)  state evs postevs chan:
