@@ -9,8 +9,8 @@ def transition (chanIn: η) (op : exchange α η)  : Traceful α η Unit := do
 -- def transition (op : exchange α η)  : Traceful α η Unit := do
   let input <- recv
   let state <- getState
-  let privMsg <- recvPriv chanIn
-  let ⟨msg, newState, privMsg, chanOut, evs, postev⟩ := op (<- getTime) input chanIn privMsg state
+  let privInput <- recvPriv chanIn
+  let ⟨msg, newState, privMsg, chanOut, evs, postev⟩ := op (<- getTime) input chanIn privInput state
   -- let ⟨msg, newState, privMsg, chanOut, evs, postev⟩ := op (<- getTime) input privMsg cstate
   triggerEvents evs
   saveState newState
