@@ -155,11 +155,11 @@ namespace Traceful
         apply valid_trace_mem at h₀
         specialize h₀ hprop
         grind
-  -- lemma recvPriv_valid_chan_label {ch: ChoiceFn} (tr: Trace α η) (chan: η)
-  --                           (h₀: valid_trace Γ tr) (hs : Traceful.recvPriv chan ch tr = some (a, tr'))
-  --                           (h₁: Γ.Λ {chan} ≤[tr] l)
-  --                           : HasLabel Γ tr a l' ∧ l' ≤[tr] l := by
-  --                           -- : a.ValidPublicBytes Γ tr := by
+   --lemma recvPriv_valid_chan_label {ch: ChoiceFn} (tr: Trace α η) (chan: η)
+   --                          (h₀: valid_trace Γ tr) (hs : Traceful.recvPriv chan ch tr = some (a, tr'))
+   --                          (h₁: Γ.Λ {chan} ≤[tr] l)
+   --                          : HasLabel Γ tr a l' ∧ l' ≤[tr] l := by
+                             -- : a.ValidPublicBytes Γ tr := by
   --                           -- : valid_trace Γ out.2 ∧ out.2 = (.SetState (up.u_state_parse.serialize m) :: tr) := by
   --       simp only [recvPriv, Bind.bind, ReaderT.bind, StateT.bind, Option.bind, read, readThe, MonadReaderOf.read, ReaderT.read, pure, StateT.pure,
   --                 get, getThe, MonadStateOf.get, liftM, monadLift, MonadLift.monadLift, StateT.get, ReaderT.pure] at hs
@@ -202,12 +202,13 @@ namespace Traceful
     (h₀ : valid_trace Γ tr)
     (hs : Traceful.sendPriv chan m ch tr = some ((), tr'))
     (hr : up.u_restrictions (.PrivMsgSent chan m :: tr))
+    (hpred : CryptoPreds.priv_send_pred Γ m chan tr)
     : valid_trace Γ tr' ∧ tr' = (.PrivMsgSent chan m :: tr) := by
         simp only [sendPriv, modify, modifyGet, MonadStateOf.modifyGet, monadLift, MonadLift.monadLift, StateT.modifyGet, pure] at hs
         subst_eqs
         and_intros
         · constructor; assumption
-          · refine valid_trace_event_monotone Γ (PrivMsgSent chan m) (by apply List.suffix_cons) ⟨l, hm, hl, hc⟩
+          · refine valid_trace_event_monotone Γ (PrivMsgSent chan m) (by apply List.suffix_cons) ⟨l, hm, hpred, hl, hc⟩
           · exact h₀
         · rfl
         -- longer version:

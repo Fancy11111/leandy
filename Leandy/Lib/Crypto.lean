@@ -23,11 +23,13 @@ Everything is parametrized by `CryptoPreds` and it's later expantion `UserPreds`
     u_sign_pred : LabelingEnv α η → (p: α ) → (m: 𝐵 α η) → (k: 𝐵 α η) → 𝑇 α η → Prop := λ _ _ _ _ _ ↦ True
     u_sym_enc_pred : LabelingEnv α η → (p:α ) → (m: 𝐵 α η) → (k: 𝐵 α η) → 𝑇 α η → Prop:= λ _ _ _ _ _ ↦ True
     u_asym_enc_pred : LabelingEnv α η → (p:α ) → (m: 𝐵 α η) → (k: 𝐵 α η) → 𝑇 α η → Prop:= λ _ _ _ _ _ ↦ True
+    u_priv_send_pred : LabelingEnv α η → (m: 𝐵 α η) → (chan : η) → 𝑇 α η → Prop:= λ _ _ _ _ ↦ True
 
     u_hash_pred_monotone (Γ p m) : Monotone (u_hash_pred Γ p m) := by simp[Monotone]
     u_sign_pred_monotone (Γ p m k) : Monotone (u_sign_pred Γ p m k) := by simp[Monotone]
     u_sym_enc_pred_monotone (Γ p m k) : Monotone (u_sym_enc_pred Γ p m k) := by simp[Monotone]
     u_asym_enc_pred_monotone (Γ p m k) : Monotone (u_asym_enc_pred Γ p m k) := by simp[Monotone]
+    u_priv_send_pred_monotone (Γ m k) : Monotone (u_priv_send_pred Γ m k) := by simp[Monotone]
 
   section
     open CryptoPreds HasValid
@@ -40,7 +42,7 @@ Everything is parametrized by `CryptoPreds` and it's later expantion `UserPreds`
   namespace CryptoPreds
   /-! We rename and modify the predicates for convenience and attacker typability. -/
     variable {α η} [DecidableEq α] [DecidableEq η] [Parameter α]
-      [CryptoPreds α η] (Γ: LabelingEnv α η) (p:α) (kind:𝕜)  (m σ k b: 𝐵 α η) (ev : 𝑇𝐸 α η) (tr: 𝑇 α η)
+      [CryptoPreds α η] (Γ: LabelingEnv α η) (p:α) (kind:𝕜)  (m σ k b: 𝐵 α η) (chan: η) (ev : 𝑇𝐸 α η) (tr: 𝑇 α η)
     open Parameter
     @[simp, aesop (rule_sets := [type_system]) simp]
     def hash_pred := is_public Γ m tr ∨ CryptoPreds.u_hash_pred Γ p m tr
@@ -50,6 +52,8 @@ Everything is parametrized by `CryptoPreds` and it's later expantion `UserPreds`
     def sym_enc_pred := is_public Γ (key p .SymEnc k) tr ∨ CryptoPreds.u_sym_enc_pred Γ p m k tr
     @[simp, aesop (rule_sets := [type_system]) simp]
     def asym_enc_pred := is_public Γ (key p .AEncK k) tr ∨ CryptoPreds.u_asym_enc_pred Γ p m k tr
+    @[simp, aesop (rule_sets := [type_system]) simp]
+    def priv_send_pred := is_public Γ (.nonce chan) tr ∨ CryptoPreds.u_priv_send_pred Γ m chan tr
 
     /-! Things remain monotone -/
     lemma hash_pred_monotone  : Monotone (hash_pred Γ p m) := by
@@ -64,6 +68,9 @@ Everything is parametrized by `CryptoPreds` and it's later expantion `UserPreds`
     lemma asym_enc_pred_monotone  : Monotone (asym_enc_pred Γ p m k) := by
       rintro tr tr' htr (h|h); (left; aapply is_public_monotone);
         (right; apply_rules[u_asym_enc_pred_monotone, h])
+    lemma priv_send_pred_monotone  : Monotone (priv_send_pred Γ m chan) := by
+      rintro tr tr' htr (h|h); (left; aapply is_public_monotone);
+        (right; apply_rules[u_priv_send_pred_monotone, h])
   end CryptoPreds
 
 
@@ -464,7 +471,7 @@ section user_preds
 
     -/
     | PrivMsgSent chan m => ∃ l,
-        valid_bytes Γ m tr ∧
+        valid_bytes Γ m tr ∧ CryptoPreds.priv_send_pred Γ m chan tr ∧
         HasLabel Γ tr m l ∧  Γ.Λ {chan} ≤[tr] l
     | SetState s => match up.u_state_parse.parse s with
       | some s =>  valid_state Γ s tr
@@ -480,13 +487,14 @@ section user_preds
       trivial
     · aapply valid_event_monotone
     -- REVIEW: simplify this proof, feels like I'm missing something
-    · rcases rhs with ⟨ l, h1, h2, h3 ⟩ 
+    · rcases rhs with ⟨ l, h1, h2, h3, h4 ⟩ 
       exists l
       and_intros
       · aapply valid_bytes_monotone
+      · aapply CryptoPreds.priv_send_pred_monotone
       · aapply hasLabel_monotone
       · intro _ _ _
-        aapply h3
+        aapply h4
         trans <;> assumption
 
   inductive valid_trace : 𝑇 α η → Prop where
@@ -513,12 +521,14 @@ section user_preds
         and_intros
         aapply valid_bytes_monotone
         apply List.suffix_cons
+        aapply CryptoPreds.priv_send_pred_monotone 
+        apply List.suffix_cons
         aapply hasLabel_monotone
         apply List.suffix_cons
-        intro _ _ _
-        apply h3
-        have := List.suffix_cons hd tl
-        trans <;> assumption
+        grind
+        apply Label.less_public_than_monotone
+        aapply List.suffix_cons
+        grind
        -- refine ⟨valid_bytes_monotone Γ m (List.suffix_cons hd tl) ih.1, ?_⟩
        -- intro tr' hle' hchan'
        -- exact ih.2 tr' (List.IsSuffix.trans (List.suffix_cons hd tl) hle') hchan'

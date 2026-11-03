@@ -83,7 +83,7 @@ structure ValidExchange (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α �
     (.PrivMsgSent chan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr))
     := by rintro _ ⟨⟩
   valid_priv_msg : ∃ l,
-    valid_bytes Γ privMsg (evs ++ tr) ∧
+    valid_bytes Γ privMsg (evs ++ tr) ∧ CryptoPreds.priv_send_pred Γ privMsg chan (evs ++ tr) ∧
     HasLabel Γ (evs ++ tr) privMsg l ∧
     Γ.Λ {chan} ≤[evs ++ tr] l
 
@@ -102,7 +102,7 @@ namespace ValidExchange
       (.PrivMsgSent chan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr))
       := by rintro _ ⟨⟩
     valid_priv_msg : ∃ l,
-      Crypto.valid_bytes Γ privMsg (evs ++ tr) ∧
+      Crypto.valid_bytes Γ privMsg (evs ++ tr) ∧ CryptoPreds.priv_send_pred Γ privMsg chan (evs ++ tr) ∧
       HasLabel Γ (evs ++ tr) privMsg l ∧
       Γ.Λ {chan} ≤[evs ++ tr] l
 
