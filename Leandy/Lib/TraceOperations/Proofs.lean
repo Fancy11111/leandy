@@ -128,8 +128,8 @@ section valid_traceful
       (hv: is_valid state) (hv': valid_exchange.full Γ (compute_trace state) op):
         is_valid (state >>= λ _  ↦ execute op)
 
-  instance (init: ChoiceFn (α:=α) (η:=η)) : ValidTraceful α η Γ (Traceful (α := α) (η := η)) where
-    execute := transition
+  instance (init: ChoiceFn (α:=α) (η:=η)) (chan : η) : ValidTraceful α η Γ (Traceful (α := α) (η := η)) where
+    execute := transition chan
     compute_trace s := match ((s.run init).run []) with
     | none => []
     | some ⟨_, tr⟩ => tr
