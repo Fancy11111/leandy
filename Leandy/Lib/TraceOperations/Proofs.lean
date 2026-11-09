@@ -28,19 +28,15 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
   simp[transition, Bind.bind, ReaderT.bind, StateT.bind, Option.bind] at ht
   (repeat split at ht <;> simp at ht)
   rrename_i _ _
-
-
     ⟨b₁, trrecv⟩ hrecv _ _
     ⟨state, trstate⟩ hstate _ _
-    ⟨b₂, trrecvPriv⟩ hrecvPriv
-    _ _
-    _ _ _ _
+    ⟨b₂, trrecvPriv⟩ hrecvPriv _ _
+    ⟨i, trlen⟩ ⟨⟩ _ _
     ⟨⟨⟩, trevs ⟩ heq_ev _ _
     ⟨⟨⟩, trstate'⟩ heq_state _ _
     ⟨⟨⟩, trsend ⟩ heq_send _ _
     ⟨⟨⟩, trsendpriv ⟩ heq_sendPriv
     heq_postev
-
 
   rcases ch with ⟨chmsg, chstate, chprivmsg⟩
   obtain ⟨valid_input₁, valid_input₂⟩ := Traceful.recv_valid_public Γ _ h₀ hrecv
@@ -76,23 +72,23 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
     ext1 <;> try rfl
   case hpin => exact inputPriv.prop
 
-  rcases hop with ⟨⟨valid_bytes, has_label⟩, valid_state, valid_restrictions, valid_events, valid_post_events, valid_priv_msg⟩
+  rcases hop with ⟨⟨valid_bytes, has_label⟩, valid_state, valid_restrictions, valid_events, valid_post_events, ⟨l, valid_priv_msg⟩⟩
 
   have hrestr_evs : up.u_restrictions (evs ++ tr) := by
     exact UserPreds.u_restrictions_antitone
       (a := evs ++ tr)
-      (b := postevs ++ .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
+      (b := postevs ++ .PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
       (by
-        refine ⟨postevs ++ [.MsgSent msg, .SetState (up.u_state_parse.serialize newState)], ?_⟩
+        refine ⟨postevs ++ [.PrivMsgSent outchan privMsg, .MsgSent msg, .SetState (up.u_state_parse.serialize newState)], ?_⟩
         simp [List.append_assoc]) valid_restrictions
   obtain ⟨valid_events_trace, ⟨⟩⟩ :=
     Traceful.triggerEvents_valid Γ _ evs valid_events h₀ heq_ev hrestr_evs
   have hrestr_state : up.u_restrictions (.SetState (up.u_state_parse.serialize newState) :: evs ++ tr) := by
     exact UserPreds.u_restrictions_antitone
       (a := .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
-      (b := postevs ++ .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
+      (b := postevs ++ .PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
       (by
-        refine ⟨postevs ++ [.MsgSent msg], ?_⟩
+        refine ⟨postevs ++ [.PrivMsgSent outchan privMsg, .MsgSent msg], ?_⟩
         simp [List.append_assoc]) valid_restrictions
   obtain ⟨valid_state_trace, ⟨⟩⟩ :=
     Traceful.saveState_valid Γ _ newState valid_state valid_events_trace heq_state hrestr_state
@@ -100,9 +96,9 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
     constructor
     · exact UserPreds.u_restrictions_antitone
         (a := .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
-        (b := postevs ++ .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
+        (b := postevs ++ .PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
         (by
-          refine ⟨postevs, ?_⟩
+          refine ⟨postevs ++ [.PrivMsgSent outchan privMsg], ?_⟩
           simp [List.append_assoc]) valid_restrictions
     · exact BytesEq.ValidPublicBytes.monotone Γ msg
         (a := evs ++ tr)
@@ -111,11 +107,30 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
           refine ⟨[.MsgSent msg, .SetState (up.u_state_parse.serialize newState)], ?_⟩
           rfl) ⟨valid_bytes, has_label⟩
     · exact valid_state_trace
+  have hsend_priv_trace : valid_trace Γ (.PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr) := by
+    constructor
+    · exact UserPreds.u_restrictions_antitone
+        (a := .PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
+        (b := postevs ++ .PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
+        (by
+          refine ⟨postevs, ?_⟩
+          simp [List.append_assoc]) valid_restrictions
+    · apply valid_trace_event_monotone Γ (.PrivMsgSent outchan privMsg)
+        (a := .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
+        (b := .PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
+        (by
+          refine ⟨[.PrivMsgSent outchan privMsg], ?_⟩
+          rfl) ⟨l, valid_priv_msg⟩
+    · exact hsend_trace
   have hrestr_post : up.u_restrictions
-      (postevs ++ (.MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)) := by
+      (postevs ++ (.PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)) := by
     simpa using valid_restrictions
+  have trsendpriv_eq : trsendpriv = (.PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr) := by
+    simp
+    sorry
+  rw[trsendpriv_eq] at heq_postev
   obtain ⟨valid_post_events_trace, ⟨⟩⟩ :=
-    Traceful.triggerEvents_valid Γ _ postevs valid_post_events hsend_trace heq_postev hrestr_post
+    Traceful.triggerEvents_valid Γ _ postevs valid_post_events hsend_priv_trace heq_postev hrestr_post
   exact valid_post_events_trace
 
 

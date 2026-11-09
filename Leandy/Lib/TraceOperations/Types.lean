@@ -83,9 +83,10 @@ structure ValidExchange (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α �
     (.PrivMsgSent chan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr))
     := by rintro _ ⟨⟩
   valid_priv_msg : ∃ l,
-    valid_bytes Γ privMsg (evs ++ tr) ∧ CryptoPreds.priv_send_pred Γ privMsg chan (evs ++ tr) ∧
-    HasLabel Γ (evs ++ tr) privMsg l ∧
-    Γ.Λ {chan} ≤[evs ++ tr] l
+    valid_bytes Γ privMsg (MsgSent msg :: SetState (up.u_state_parse.serialize state) :: evs ++ tr) ∧
+    CryptoPreds.priv_send_pred Γ privMsg chan (MsgSent msg :: SetState (up.u_state_parse.serialize state) :: evs ++ tr) ∧
+    HasLabel Γ (MsgSent msg :: SetState (up.u_state_parse.serialize state) :: evs ++ tr) privMsg l ∧
+    Γ.Λ {chan} ≤[MsgSent msg :: SetState (up.u_state_parse.serialize state) :: evs ++ tr] l
 
 namespace ValidExchange
   structure Alt (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α η) (chan : η) where
@@ -102,9 +103,10 @@ namespace ValidExchange
       (.PrivMsgSent chan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize state) :: evs ++ tr))
       := by rintro _ ⟨⟩
     valid_priv_msg : ∃ l,
-      Crypto.valid_bytes Γ privMsg (evs ++ tr) ∧ CryptoPreds.priv_send_pred Γ privMsg chan (evs ++ tr) ∧
-      HasLabel Γ (evs ++ tr) privMsg l ∧
-      Γ.Λ {chan} ≤[evs ++ tr] l
+      Crypto.valid_bytes Γ privMsg (MsgSent msg :: SetState (up.u_state_parse.serialize state) :: evs ++ tr) ∧
+      CryptoPreds.priv_send_pred Γ privMsg chan (MsgSent msg :: SetState (up.u_state_parse.serialize state) :: evs ++ tr) ∧
+      HasLabel Γ (MsgSent msg :: SetState (up.u_state_parse.serialize state) :: evs ++ tr) privMsg l ∧
+      Γ.Λ {chan} ≤[MsgSent msg :: SetState (up.u_state_parse.serialize state) :: evs ++ tr] l
 
   @[aesop (rule_sets := [type_system]) norm ]
   lemma Alt_def Γ tr (msg privMsg: 𝐵 α η)  state evs postevs chan:
@@ -120,7 +122,7 @@ abbrev valid_exchange  (op : exchange α η) :=
   -- TODO:
   ∀ {msg} {newState} {privMsg} {chanOut} {evs} {postevs},
     (input : 𝐵 α η) -> (hi: is_valid_public Γ input tr) →
-    (chanIn : η) → (privInput : 𝐵 α η) → (hpi: valid_bytes Γ privInput tr) → 
+    (chanIn : η) → (privInput : 𝐵 α η) → (hpi: valid_bytes Γ privInput tr) →
     -- hp: is_valid_private_message)
     (state : up.u_state) → (hs₁ : valid_state Γ state tr) →
     -- add privMsg and chan
