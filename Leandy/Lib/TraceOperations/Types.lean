@@ -72,7 +72,7 @@ end Atom
 
 @[aesop (rule_sets := [type_system]) safe 1100 constructors ]
 structure ValidExchange (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α η) (chan : η) where
-  valid_public_bytes  : HasValidPublic.instBytesEq.is_valid_public Γ msg (evs ++ tr)
+  valid_public_bytes  : HasValidPublic.instBytesEq.is_valid_public Γ msg (.SetState (up.u_state_parse.serialize state) :: (evs ++ tr))
     := by prove_is_valid_public
   valid_state  : valid_state Γ state (evs ++ tr)
   valid_restrictions : up.u_restrictions
@@ -90,9 +90,9 @@ structure ValidExchange (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α �
 
 namespace ValidExchange
   structure Alt (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α η) (chan : η) where
-    valid_bytes  : valid_bytes Γ msg (evs ++ tr)
+    valid_bytes  : valid_bytes Γ msg (.SetState (up.u_state_parse.serialize state) :: (evs ++ tr))
       := by prove_valid_bytes
-    has_label    : msg.is_public Γ (evs ++ tr)
+    has_label    : msg.is_public Γ (.SetState (up.u_state_parse.serialize state) :: (evs ++ tr))
       := by prove_is_public
     valid_state  : Crypto.valid_state Γ state (evs ++ tr)
     valid_restrictions : up.u_restrictions
