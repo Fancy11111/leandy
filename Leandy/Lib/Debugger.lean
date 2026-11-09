@@ -17,6 +17,8 @@ structure DebuggerState  where
   trace: 𝑇 α η
   next_state: up.u_state
   next_message: 𝐵 α η
+  next_chan: η
+  next_priv_message: 𝐵 α η
 
 abbrev DebugM := StateT (DebuggerState α η) IO
 open StateT Parsing.Parsable IO
@@ -31,6 +33,8 @@ namespace DebugM
   def set_next_message (m:𝐵 α η) : DebugM α η (Unit) := do StateT.set {(<- StateT.get) with next_message:=m}
   def get_next_message : DebugM α η (𝐵 α η) := do return (<- StateT.get).next_message
   def get_height : DebugM α η ℕ := do return (<- get_trace).length
+  def get_next_chan : DebugM α η η := do return (<- StateT.get).next_chan
+  def get_next_priv_message : DebugM α η (𝐵 α η) := do return (<- StateT.get).next_priv_message
   def extend_trace (evs: List (𝑇𝐸 α η)) : DebugM α η Unit := do set {(<- get) with trace := (<- get_trace) ++ evs}
 
   private def get_config : DebugM α η (DebugConfig α η) := do return (<- get).config
@@ -44,19 +48,23 @@ namespace DebugM
     execute op := do
       let nmessage <- get_next_message;
       let nstate <- get_next_state
+      let nchan <- get_next_chan
+      let nprivmsg <- get_next_priv_message
       let ⟨sm, ss⟩ <- get_config;
       let sm := Option.maybe (!sm) .fail
       println $ "receiving from the network:\n\t" ++ reprIfEq sm nmessage
       println $ "with state:\n\t " ++ reprIfEq ss nstate
-      let {message, state, events, post_events} := op (<- get_height) (<- get_next_message) nstate
+      let {message, state, priv_message, chan, events, post_events} := op (<- get_height) nmessage nchan nprivmsg nstate
       println $ "step sent:\n\t" ++ reprIfEq sm message
       println $ "new state:\n\t" ++ reprIfEq ss state
+      println $ "channel:\n\t" ++ reprIfEq sm (.nonce chan)
+      println $ "private message:\n\t" ++ reprIfEq sm priv_message
       set_next_state state
       set_next_message message
       extend_trace $ events ++ [.SetState (up.u_state_parse.serialize state), .MsgSent message] ++ post_events
 
   instance instDefault [Inhabited up.u_state]: Inhabited (DebuggerState α η) where
-    default := {trace:=[], next_state := default, next_message := .fail, config:= default}
+    default := {trace:=[], next_state := default, next_message := .fail, next_priv_message := .fail, next_chan := sorry, config:= default}
 
   def DebuggerState.with_config [insth: Inhabited up.u_state] (config: DebugConfig α η) : (DebuggerState α η) := {
     instDefault.default with config

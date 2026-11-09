@@ -192,6 +192,6 @@ namespace Blockchain
       (hgrow: tr <= tr') →
       (hselect : Liveness.Select P op tr t_msg t_s msg s) →
       (hheight: tr.get_blockchain.height + n ≤ tr'.get_blockchain.height) →
-      ∃ l₁ l₂, tr' = l₂ ++ (op (l₁.length + tr.length) msg s).as_list_including ++ l₁ ++ tr
+      ∃ l₁ l₂, tr' = l₂ ++ (op (l₁.length + tr.length) msg sorry sorry s).as_list_including ++ l₁ ++ tr
 
 end Blockchain
