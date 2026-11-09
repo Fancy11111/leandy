@@ -139,6 +139,21 @@ namespace Traceful
                   get, getThe, MonadStateOf.get, liftM, monadLift, MonadLift.monadLift, StateT.get, ReaderT.pure] at hs
         grind
 
+  lemma recvPriv_valid_bytes {ch: ChoiceFn} (tr: Trace α η) (chan: η)
+                            (h₀: valid_trace Γ tr) (hs : Traceful.recvPriv chan ch tr = some (a, tr'))
+                            : valid_bytes Γ a tr := by
+        simp only [recvPriv, Bind.bind, ReaderT.bind, StateT.bind, Option.bind, read, readThe, MonadReaderOf.read, ReaderT.read, pure, StateT.pure,
+                  get, getThe, MonadStateOf.get, liftM, monadLift, MonadLift.monadLift, StateT.get, ReaderT.pure] at hs
+        simp at hs
+        obtain ⟨ha, _⟩ := hs
+        generalize hm: ch.privMsg tr chan = m at *
+        obtain ⟨mval, hprop⟩ := m
+        subst_eqs
+        simp only
+        apply valid_trace_mem at h₀
+        specialize h₀ hprop
+        grind
+
   lemma recvPriv_valid_chan_label {ch: ChoiceFn}
     (tr: Trace α η) (chan: η)
     (h₀ : valid_trace Γ tr)
