@@ -43,14 +43,22 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
 
 
   rcases ch with ⟨chmsg, chstate, chprivmsg⟩
-  obtain ⟨valid_input₁, valid_input₂⟩ := Traceful.recv_valid_public Γ _ h₀ _
+  obtain ⟨valid_input₁, valid_input₂⟩ := Traceful.recv_valid_public Γ _ h₀ hrecv
   obtain ⟨_, ⟨⟩⟩ := Traceful.recv_valid Γ _ h₀ hrecv
   obtain valid_state := Traceful.getState_valid_state Γ _ h₀ hstate
   obtain ⟨_, ⟨⟩⟩ := Traceful.getState_valid Γ _ h₀ hstate
-  cases hrecv
+  obtain chan_label_priv := Traceful.recvPriv_valid_chan_label Γ _ _ h₀ hrecvPriv
+  obtain valid_priv_input := Traceful.recvPriv_valid_bytes Γ _ _ h₀ hrecvPriv
+  obtain ⟨_, ⟨⟩⟩ := Traceful.recvPriv_valid Γ _ _ h₀ hrecvPriv
+  -- TODO: this is the problem
+  -- because msg and privMsg have the same type, changes e.g. heq_sendPriv to use msg instead of privMsg
+  -- which then makes generalize hin : chmsg tr = input at * fail, because it cant work with it in e.g. heq_sendPriv
+  cases hrecv;
+  cases hrecvPriv;
+
   simp only [] at *
 
-  generalize hin: chmsg tr = input
+  generalize hin: chmsg tr = input at *
   generalize hinPriv: chprivmsg tr c = inputPriv at *
   generalize hmsg : ((op tr.length input c inputPriv state).message) = msg at *
   generalize hprivmsg : ((op tr.length input c inputPriv state).priv_message) = privMsg at *
@@ -60,19 +68,15 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
   generalize hpostevs : ((op tr.length input c inputPriv state).post_events) = postevs at *
 
   -- TODO: look here
-  specialize @hop msg privMsg newState evs postevs outchan ?hr _ ⟨valid_input₁, valid_input₂⟩ ?hin _ valid_state ?heq
+  specialize @hop msg privMsg newState evs postevs outchan ?hr _ ⟨valid_input₁, valid_input₂⟩ ?hin c _ valid_priv_input ?hpin _ valid_state ?heq
   case hr => aapply valid_trace_restriction
-  case hin => sorry
+  case hin => exact input.prop
   case heq =>
-    cases hin; cases hmsg; cases hevs; cases hpostevs
+    cases hin; cases hmsg; cases hevs; cases hpostevs; cases hprivmsg; cases houtchan; cases hnstate;
     ext1 <;> try rfl
-    symm; sorry
-    sorry; sorry
-    sorry; sorry
-    sorry
+  case hpin => exact inputPriv.prop
 
-
-  rcases hop with ⟨⟨valid_bytes, has_label⟩, valid_state, valid_restrictions, valid_events, valid_post_events⟩
+  rcases hop with ⟨⟨valid_bytes, has_label⟩, valid_state, valid_restrictions, valid_events, valid_post_events, valid_priv_msg⟩
 
   have hrestr_evs : up.u_restrictions (evs ++ tr) := by
     exact UserPreds.u_restrictions_antitone
