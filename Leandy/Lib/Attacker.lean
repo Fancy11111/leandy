@@ -162,15 +162,24 @@ namespace Attacker
         aapply HasLabelAt.Xor
         rw[<- LabelAt.public_atldef] at *
         aapply Γ.Λ_valid
-      -- REVIEW: proof that PrivMsgSent is public if channel is public
+      -- REVIEW: seems overly complicated 
       | @PrivMsgSent chan m hin hchan hchan_ih =>
         rw[<- is_public_is_HasLabelAt_pub]
-        obtain ⟨_, hflow⟩ := valid_trace_mem _ _ _ hv hin
+        obtain ⟨lchan, ⟨_, ⟨_, ⟨has_label, chan_less_public⟩ ⟩⟩⟩ := valid_trace_mem _ _ _ hv hin
         have hΛ : Γ.Λ {chan} ☢ tr := by
           apply HasLabelAt.rev_xor at hchan_ih
           rw[<- LabelAt.public_atldef] at hchan_ih
           exact hchan_ih
-        exact hflow tr (le_refl tr) hΛ
+        refine is_public_self Γ ?_ tr ?_ ?_
+
+        exact lchan 
+        rotate_right
+        exact has_label
+        have hΛPub : 𝓟ub ≤[tr] Γ.Λ {chan}   := by
+          exact (Label.flow_to_public_eq tr (Γ.Λ {chan})).mpr hΛ
+        refine (Label.flow_to_public_eq tr lchan).mp ?_
+        apply (Label.less_public_than_preorder tr).trans 𝓟ub (Γ.Λ {chan}) lchan hΛPub chan_less_public
+
 
     /-- All messages that can be sent by the attacker are valid -/
     theorem attacker_valid (hv: valid_trace Γ tr):
@@ -182,7 +191,7 @@ namespace Attacker
         case Published m hm => have := valid_trace_mem _ _ _ hv hm; grind
         -- REVIEW: proof that PrivMsgSent content is valid
         case PrivMsgSent _ _ hin _ _ =>
-          obtain ⟨hvalid, _⟩ := valid_trace_mem _ _ _ hv hin
+          obtain ⟨l, ⟨hvalid, _⟩⟩ := valid_trace_mem _ _ _ hv hin
           exact hvalid
         case Fail | Initial | Const | Key | Tuple | Proj_1 | Proj_2 | SymDec | ADec | Verify| Zero | Xor =>
              prove_valid_bytes
