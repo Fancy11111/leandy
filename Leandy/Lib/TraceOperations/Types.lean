@@ -192,23 +192,31 @@ namespace valid_exchange
       exact h hr input ⟨hi₁, hi₂⟩ hi_in chanIn privInput hpi hpi_in state hs hstep
 end valid_exchange
 
-macro "intro_valid_exchange" : tactic =>
-  `(tactic| simp[valid_exchange] <;> introv h₁ h₂ hs₁ hstep
-        <;> expose_names
-        <;> constructor
+open Lean in
+syntax "intro_valid_exchange" : tactic
+macro_rules
+  | `(tactic| intro_valid_exchange) =>
+    `(tactic|
+      unfold valid_exchange;
+      rintro msg newState privMsg chanOut evs postevs
+        input hi chanIn privInput hpi state hs₁ hstep;
+      expose_names;
+      constructor <;> try dsimp [autoParam]
       <;> try simp [UserPreds.u_restrictions]
     )
 
 open Lean in
-syntax "intro_valid_exchange'" "for" ident ("with" rintroPat rintroPat rintroPat rintroPat rintroPat rintroPat rintroPat)?: tactic
+syntax "intro_valid_exchange'" "for" ident
+  ("with" rintroPat rintroPat rintroPat rintroPat rintroPat)?: tactic
 macro_rules
-  | `(tactic| intro_valid_exchange' for $name with $input $privInput $hi₁ $hi₂ $state $hs₁ $chanIn) =>
+  | `(tactic| intro_valid_exchange' for $name with $input $hi₁ $hi₂ $state $hs₁) =>
     `(tactic|
-      rintro msg privMsg chan newState evs postevs $input $privInput $hi₁ $hi₂ $state $hs₁ hstep $chanIn;
+      rintro msg privMsg newState evs postevs chanOut
+        $input $hi₁ $hi₂ chanIn privInput hpi $state $hs₁ hstep;
       unfold $name at * ; simp_all;
       (repeat' split at hstep)
         <;> (try constructor) <;> (
-          (try obtain ⟨⟨⟩, ⟨⟩, ⟨⟩, ⟨⟩⟩:= hstep);
+          (try obtain ⟨⟨⟩, ⟨⟩, ⟨⟩, ⟨⟩, ⟨⟩, ⟨⟩⟩:= hstep);
           (try pauto);
           (try simp_all only [List.not_mem_nil]);
           (try dsimp [autoParam]);
@@ -218,4 +226,4 @@ macro_rules
           (try trivial)
         )
     )
-  | `(tactic| intro_valid_exchange' for $name) => `(tactic| intro_valid_exchange' for $name with _ _ _ _ _ _ _)
+  | `(tactic| intro_valid_exchange' for $name) => `(tactic| intro_valid_exchange' for $name with _ _ _ _ _)
