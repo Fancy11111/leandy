@@ -30,8 +30,6 @@ namespace Traceful
   abbrev sendPriv (chan: η) (m: BytesEq α η) : Traceful α η Unit :=
     modify ((.PrivMsgSent chan m) :: ·)
 
-  -- TODO: privRecv + privSend
-
   abbrev saveState (st: up.u_state) : Traceful α η Unit :=
     modify ((.SetState $ up.u_state_parse.serialize st) :: ·)
 
