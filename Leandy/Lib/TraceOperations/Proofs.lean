@@ -46,9 +46,6 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
   obtain chan_label_priv := Traceful.recvPriv_valid_chan_label Γ _ _ h₀ hrecvPriv
   obtain valid_priv_input := Traceful.recvPriv_valid_bytes Γ _ _ h₀ hrecvPriv
   obtain ⟨_, ⟨⟩⟩ := Traceful.recvPriv_valid Γ _ _ h₀ hrecvPriv
-  -- TODO: this is the problem
-  -- because msg and privMsg have the same type, changes e.g. heq_sendPriv to use msg instead of privMsg
-  -- which then makes generalize hin : chmsg tr = input at * fail, because it cant work with it in e.g. heq_sendPriv
   cases hrecv;
   cases hrecvPriv;
 
@@ -63,7 +60,6 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
   generalize hevs : ((op tr.length input c inputPriv state).events) = evs at *
   generalize hpostevs : ((op tr.length input c inputPriv state).post_events) = postevs at *
 
-  -- TODO: look here
   specialize @hop msg privMsg newState evs postevs outchan ?hr _ ⟨valid_input₁, valid_input₂⟩ ?hin c _ valid_priv_input ?hpin _ valid_state ?heq
   case hr => aapply valid_trace_restriction
   case hin => exact input.prop
@@ -105,7 +101,7 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
         (b := .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
         (by
           refine ⟨[.MsgSent msg], ?_⟩
-          rfl) ⟨valid_bytes, has_label⟩
+          rfl) ⟨(by apply valid_bytes_monotone; rotate_left; apply valid_bytes; simp), (by apply is_public_monotone; rotate_left; apply has_label; simp)⟩
     · exact valid_state_trace
 
   have hrestr_msg : up.u_restrictions (.MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr) := by
@@ -116,7 +112,7 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
         refine ⟨postevs ++ [.PrivMsgSent outchan privMsg], ?_⟩
         simp [List.append_assoc]) valid_restrictions
   obtain ⟨valid_trace_send, ⟨⟩⟩ :=
-    Traceful.send_valid Γ (.SetState (up.u_state_parse.serialize newState) :: evs ++ tr) msg valid_bytes has_label valid_state_trace heq_send hrestr_msg
+    Traceful.send_valid Γ (.SetState (up.u_state_parse.serialize newState) :: evs ++ tr) msg (by apply valid_bytes_monotone; rotate_left; apply valid_bytes; simp) (by apply is_public_monotone; rotate_left; apply has_label; simp) valid_state_trace heq_send hrestr_msg
   have hsend_priv_trace : valid_trace Γ (.PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr) := by
     constructor
     · exact UserPreds.u_restrictions_antitone

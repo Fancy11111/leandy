@@ -26,7 +26,6 @@ section
 
   -- abbrev exchange := (i: ℕ) → (m : 𝐵 α η) -> (s : up.u_state) → Atom α η
   abbrev exchange := (i: ℕ) → (m : 𝐵 α η) -> (c: η) -> (privM: 𝐵 α η) -> (s : up.u_state) → Atom α η
-  -- TODO: priv message + channel
 
   namespace Atom
     variable {α η} [DecidableEq α] [DecidableEq η] [Parameter α] [up: UserPreds α η] (Γ : LabelingEnv α η) (tr : Trace α η)
@@ -72,7 +71,7 @@ end Atom
 
 @[aesop (rule_sets := [type_system]) safe 1100 constructors ]
 structure ValidExchange (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α η) (chan : η) where
-  valid_public_bytes  : HasValidPublic.instBytesEq.is_valid_public Γ msg (.SetState (up.u_state_parse.serialize state) :: (evs ++ tr))
+  valid_public_bytes  : HasValidPublic.instBytesEq.is_valid_public Γ msg ((evs ++ tr))
     := by prove_is_valid_public
   valid_state  : valid_state Γ state (evs ++ tr)
   valid_restrictions : up.u_restrictions
@@ -90,9 +89,9 @@ structure ValidExchange (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α �
 
 namespace ValidExchange
   structure Alt (msg privMsg : 𝐵 α η) state (evs postevs: 𝑇 α η) (chan : η) where
-    valid_bytes  : valid_bytes Γ msg (.SetState (up.u_state_parse.serialize state) :: (evs ++ tr))
+    valid_bytes  : valid_bytes Γ msg ( (evs ++ tr))
       := by prove_valid_bytes
-    has_label    : msg.is_public Γ (.SetState (up.u_state_parse.serialize state) :: (evs ++ tr))
+    has_label    : msg.is_public Γ ((evs ++ tr))
       := by prove_is_public
     valid_state  : Crypto.valid_state Γ state (evs ++ tr)
     valid_restrictions : up.u_restrictions
@@ -119,7 +118,6 @@ end ValidExchange
 open HasValidPublic in
 @[aesop (rule_sets := [type_system]) norm]
 abbrev valid_exchange  (op : exchange α η) :=
-  -- TODO:
   ∀ {msg} {newState} {privMsg} {chanOut} {evs} {postevs},
     (input : 𝐵 α η) -> (hi: is_valid_public Γ input tr) →
     (chanIn : η) → (privInput : 𝐵 α η) → (hpi: valid_bytes Γ privInput tr) →
