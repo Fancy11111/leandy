@@ -18,6 +18,24 @@ def transition (chanIn: η) (op : exchange α η)  : Traceful α η Unit := do
   sendPriv chanOut privMsg
   triggerEvents postev
 
+open Lean in
+syntax "prove_valid_monotone" ident: tactic
+macro_rules
+  | `(tactic| prove_valid_monotone $name) =>
+    `(tactic|
+      apply valid_bytes_monotone; rotate_left; apply $name; simp
+    )
+
+open Lean in
+syntax "prove_public_monotone" ident: tactic
+macro_rules
+  | `(tactic| prove_public_monotone $name) =>
+    `(tactic|
+      apply is_public_monotone; rotate_left; apply $name; simp
+    )
+
+
+
 theorem transition_valid {ch: ChoiceFn} {c: η}
   (op: exchange (α:=α) (η:=η)) (tr tr': Trace α η)
   (hop : valid_exchange.full Γ tr op)
@@ -101,7 +119,7 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
         (b := .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
         (by
           refine ⟨[.MsgSent msg], ?_⟩
-          rfl) ⟨(by apply valid_bytes_monotone; rotate_left; apply valid_bytes; simp), (by apply is_public_monotone; rotate_left; apply has_label; simp)⟩
+          rfl) ⟨(by prove_valid_monotone valid_bytes), (by prove_public_monotone has_label)⟩
     · exact valid_state_trace
 
   have hrestr_msg : up.u_restrictions (.MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr) := by
@@ -112,7 +130,7 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
         refine ⟨postevs ++ [.PrivMsgSent outchan privMsg], ?_⟩
         simp [List.append_assoc]) valid_restrictions
   obtain ⟨valid_trace_send, ⟨⟩⟩ :=
-    Traceful.send_valid Γ (.SetState (up.u_state_parse.serialize newState) :: evs ++ tr) msg (by apply valid_bytes_monotone; rotate_left; apply valid_bytes; simp) (by apply is_public_monotone; rotate_left; apply has_label; simp) valid_state_trace heq_send hrestr_msg
+    Traceful.send_valid Γ (.SetState (up.u_state_parse.serialize newState) :: evs ++ tr) msg (by prove_valid_monotone valid_bytes) (by prove_public_monotone has_label) valid_state_trace heq_send hrestr_msg
   have hsend_priv_trace : valid_trace Γ (.PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr) := by
     constructor
     · exact UserPreds.u_restrictions_antitone
@@ -144,7 +162,6 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
   obtain ⟨valid_post_events_trace, ⟨⟩⟩ :=
     Traceful.triggerEvents_valid Γ _ postevs valid_post_events hsend_priv_trace heq_postev hrestr_post
   exact valid_post_events_trace
-
 
 section valid_traceful
   variable (α η:Type) [DecidableEq α] [DecidableEq η] [Parameter α] [instup: UserPreds α η] (Γ: LabelingEnv α η)
