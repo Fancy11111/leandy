@@ -5,6 +5,8 @@ inductive Nonce
   | Sk (a b:ℙ): Nonce
 deriving DecidableEq, Repr
 
+instance NonceInhabited : Inhabited Nonce where default := .Nat 0
+
 @[simp, aesop (rule_sets := [protocol]) norm]
 def Γ : LabelingEnv Unit Nonce := LabelingEnv.from_singles fun
   | .Sk _ _ => 𝓢ec
@@ -97,14 +99,15 @@ section protocol
   @[aesop (rule_sets := [protocol]) norm]
   def sk (a b :ℙ) := BytesEq.key () .SymEnc $ BytesEq.nonce $ Nonce.Sk a b
 
-  def initiator (a b : ℙ) (na: ℕ) : exchange Unit Nonce := λ _ _ _ ↦
+  def initiator (a b : ℙ) (na: ℕ) : exchange Unit Nonce := λ _ _ _ _ _ ↦
     let message := [!(); a, b, na]
     { message,
+      priv_message := .fail,
       state :=  .Init a b ⟨na, BytesEq.nonce_fail _⟩,
       events := [.Event $ .start a b na ] }
 
   @[aesop (rule_sets := [protocol]) norm]
-  def responder (a b : ℙ) : exchange Unit Nonce := λ _ input _ ↦
+  def responder (a b : ℙ) : exchange Unit Nonce := λ _ input _ _ _ ↦
     let a' := input.proj_1 ()
     let b' := input.proj_2 () |> BytesEq.proj_1 ()
     let na := input.proj_2 () |> BytesEq.proj_2 ()
@@ -114,7 +117,7 @@ section protocol
 
   open Parsing Parsable in
   @[aesop (rule_sets := [protocol]) norm]
-  def initiator_check : exchange Unit Nonce := λ _ input state => Id.run do
+  def initiator_check : exchange Unit Nonce := λ _ input _ _ state => Id.run do
     let .Init sa sb sna := state | return default
     let dec := input.symdec () (sk sa sb)
     if some (sa, sna) = do_parse dec as (_ × 𝑩 _ _) then
@@ -132,6 +135,15 @@ theorem valid_initiator (a b : ℙ) (n: ℕ) (tr: 𝑇 Unit Nonce) : valid_excha
   case has_label =>
     prove_is_public
     simp
+  case valid_priv_msg =>
+    exists 𝓟ub
+    and_intros     
+    · prove_valid_bytes
+    · aesop_type_system
+    · constructor
+    · intros; trivial 
+    
+    
 
 open HasValidPublic in
 @[aesop (rule_sets := [protocol]) safe apply]
@@ -153,11 +165,97 @@ lemma enc_pub {tr} {input:𝐵 Unit Nonce} {Γ'} {a b}
     simp
   rfl
 
+set_option maxHeartbeats 600000
 
 set_option trace.aesop true
 open HasLabel in
 theorem valid_responder (a b : ℙ) (tr: 𝑇 Unit Nonce) : valid_exchange Γ tr (responder a b) := by
-  aesop_type_system
+  intro_valid_exchange
+  · simp [responder] at hstep
+    split at hstep
+    · cases hi
+      simp [responder] at hstep
+      rcases hstep with ⟨_, _, _, _,_,_⟩ 
+      subst_eqs
+      and_intros
+      prove_valid_bytes
+      right
+      simp [Crypto.CryptoPreds.u_sym_enc_pred]
+      prove_is_public
+      simp
+    · cases hi
+      simp [responder] at hstep
+      rcases hstep with ⟨_, _, _, _,_,_⟩
+      subst_eqs
+      and_intros
+      prove_valid_bytes
+      prove_is_public 
+  · simp [responder] at hstep
+    split at hstep
+    · cases hi
+      simp [responder] at hstep
+      rcases hstep with ⟨_, _, _, _,_,_⟩ 
+      subst_eqs
+      simp
+    · cases hi
+      simp [responder] at hstep
+      rcases hstep with ⟨_, _, _, _,_,_⟩ 
+      subst_eqs
+      simp
+  · simp [responder] at hstep
+    split at hstep
+    · cases hi
+      simp [responder] at hstep
+      rcases hstep with ⟨_, _, _, _,_,_⟩ 
+      subst_eqs
+      simp
+    · cases hi
+      simp [responder] at hstep
+      rcases hstep with ⟨_, _, _, _,_,_⟩ 
+      subst_eqs
+      simp
+  · simp [responder] at hstep
+    split at hstep
+    · cases hi
+      simp [responder] at hstep
+      rcases hstep with ⟨_, _, _, _,_,_⟩ 
+      subst_eqs
+      simp
+    · cases hi
+      simp [responder] at hstep
+      rcases hstep with ⟨_, _, _, _,_,_⟩ 
+      subst_eqs
+      simp 
+  · simp [responder] at hstep
+    split at hstep
+    · cases hi
+      simp [responder] at hstep
+      rcases hstep with ⟨_, _, _, _,_,_⟩ 
+      subst_eqs
+      and_intros     
+      · prove_valid_bytes
+      · aesop_type_system
+      · exists 𝓟ub; and_intros
+        prove_has_label
+        intros; trivial
+    · cases hi  
+      rcases hstep with ⟨_, _, _, _,_,_⟩ 
+      subst_eqs
+      and_intros     
+      · prove_valid_bytes
+      · apply Or.inl
+        exists 𝓟ub 
+        and_intros
+        apply HasLabel.Xor
+        unfold default NonceInhabited
+        dsimp 
+        simp
+        trivial
+      · exists 𝓟ub; and_intros
+        prove_has_label
+        intros; trivial
+
+  
 
 theorem valid_initiator_check (tr: 𝑇 Unit Nonce) : valid_exchange.alt Γ tr (initiator_check) := by
   intro_valid_exchange' for initiator_check
@@ -165,3 +263,4 @@ theorem valid_initiator_check (tr: 𝑇 Unit Nonce) : valid_exchange.alt Γ tr (
     simp_all
     exists sa, sb, sna.1
     grind
+  
