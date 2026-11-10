@@ -63,14 +63,14 @@ namespace DebugM
       set_next_message message
       extend_trace $ events ++ [.SetState (up.u_state_parse.serialize state), .MsgSent message] ++ post_events
 
-  instance instDefault [Inhabited up.u_state]: Inhabited (DebuggerState α η) where
-    default := {trace:=[], next_state := default, next_message := .fail, next_priv_message := .fail, next_chan := sorry, config:= default}
+  instance instDefault [Inhabited up.u_state] [Inhabited η]: Inhabited (DebuggerState α η) where
+    default := {trace:=[], next_state := default, next_message := .fail, next_priv_message := .fail, next_chan := default, config:= default}
 
-  def DebuggerState.with_config [insth: Inhabited up.u_state] (config: DebugConfig α η) : (DebuggerState α η) := {
+  def DebuggerState.with_config [insth: Inhabited up.u_state] [Inhabited η] (config: DebugConfig α η) : (DebuggerState α η) := {
     instDefault.default with config
   }
 
-  def to_IO [insth:Inhabited up.u_state] (config: DebugConfig α η := default) (computation: DebugM α η Unit) : IO (DebuggerState α η) := do
+  def to_IO [insth:Inhabited up.u_state] [Inhabited η] (config: DebugConfig α η := default) (computation: DebugM α η Unit) : IO (DebuggerState α η) := do
     let ⟨_, state⟩ <- StateT.run computation (DebuggerState.with_config config)
     return state
 end DebugM
