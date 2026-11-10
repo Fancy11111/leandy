@@ -177,7 +177,8 @@ theorem valid_responder (a b : ℙ) (tr: 𝑇 Unit Nonce) : valid_exchange Γ tr
     simp [Crypto.CryptoPreds.u_sym_enc_pred]
     prove_is_public
     simp
-  · and_intros
+  all_goals (
+    and_intros
     · apply Or.inl
       prove_is_public
       simp
@@ -185,14 +186,7 @@ theorem valid_responder (a b : ℙ) (tr: 𝑇 Unit Nonce) : valid_exchange Γ tr
       and_intros
       · prove_has_label
       · simp
-  · and_intros
-    · apply Or.inl
-      prove_is_public
-      simp
-    · exists 𝓟ub
-      and_intros
-      · prove_has_label
-      · simp
+  )
 
   -- · simp [responder] at hstep
   --   · cases hi
