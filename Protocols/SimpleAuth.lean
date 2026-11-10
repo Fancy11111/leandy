@@ -137,13 +137,13 @@ theorem valid_initiator (a b : ℙ) (n: ℕ) (tr: 𝑇 Unit Nonce) : valid_excha
     simp
   case valid_priv_msg =>
     exists 𝓟ub
-    and_intros     
+    and_intros
     · prove_valid_bytes
     · aesop_type_system
     · constructor
-    · intros; trivial 
-    
-    
+    · intros; trivial
+
+
 
 open HasValidPublic in
 @[aesop (rule_sets := [protocol]) safe apply]
@@ -171,91 +171,113 @@ set_option trace.aesop true
 open HasLabel in
 theorem valid_responder (a b : ℙ) (tr: 𝑇 Unit Nonce) : valid_exchange Γ tr (responder a b) := by
   intro_valid_exchange
-  · simp [responder] at hstep
-    split at hstep
-    · cases hi
-      simp [responder] at hstep
-      rcases hstep with ⟨_, _, _, _,_,_⟩ 
-      subst_eqs
-      and_intros
-      prove_valid_bytes
-      right
-      simp [Crypto.CryptoPreds.u_sym_enc_pred]
+  <;> (simp[responder] at hstep; split at hstep <;> (cases hi; simp[] at hstep; rcases hstep with ⟨_, _, _, _,_,_⟩; subst_eqs; try simp))
+  · and_intros
+    prove_valid_bytes
+    simp [Crypto.CryptoPreds.u_sym_enc_pred]
+    prove_is_public
+    simp
+  · and_intros
+    · apply Or.inl
       prove_is_public
       simp
-    · cases hi
-      simp [responder] at hstep
-      rcases hstep with ⟨_, _, _, _,_,_⟩
-      subst_eqs
+    · exists 𝓟ub
       and_intros
-      prove_valid_bytes
-      prove_is_public 
-  · simp [responder] at hstep
-    split at hstep
-    · cases hi
-      simp [responder] at hstep
-      rcases hstep with ⟨_, _, _, _,_,_⟩ 
-      subst_eqs
+      · prove_has_label
+      · simp
+  · and_intros
+    · apply Or.inl
+      prove_is_public
       simp
-    · cases hi
-      simp [responder] at hstep
-      rcases hstep with ⟨_, _, _, _,_,_⟩ 
-      subst_eqs
-      simp
-  · simp [responder] at hstep
-    split at hstep
-    · cases hi
-      simp [responder] at hstep
-      rcases hstep with ⟨_, _, _, _,_,_⟩ 
-      subst_eqs
-      simp
-    · cases hi
-      simp [responder] at hstep
-      rcases hstep with ⟨_, _, _, _,_,_⟩ 
-      subst_eqs
-      simp
-  · simp [responder] at hstep
-    split at hstep
-    · cases hi
-      simp [responder] at hstep
-      rcases hstep with ⟨_, _, _, _,_,_⟩ 
-      subst_eqs
-      simp
-    · cases hi
-      simp [responder] at hstep
-      rcases hstep with ⟨_, _, _, _,_,_⟩ 
-      subst_eqs
-      simp 
-  · simp [responder] at hstep
-    split at hstep
-    · cases hi
-      simp [responder] at hstep
-      rcases hstep with ⟨_, _, _, _,_,_⟩ 
-      subst_eqs
-      and_intros     
-      · prove_valid_bytes
-      · aesop_type_system
-      · exists 𝓟ub; and_intros
-        prove_has_label
-        intros; trivial
-    · cases hi  
-      rcases hstep with ⟨_, _, _, _,_,_⟩ 
-      subst_eqs
-      and_intros     
-      · prove_valid_bytes
-      · apply Or.inl
-        exists 𝓟ub 
-        and_intros
-        apply HasLabel.Xor
-        unfold default NonceInhabited
-        dsimp 
-        simp
-        trivial
-      · exists 𝓟ub; and_intros
-        prove_has_label
-        intros; trivial
+    · exists 𝓟ub
+      and_intros
+      · prove_has_label
+      · simp
 
-  
+  -- · simp [responder] at hstep
+  --   · cases hi
+  --     simp [responder] at hstep
+  --     rcases hstep with ⟨_, _, _, _,_,_⟩
+  --     subst_eqs
+  --     and_intros
+  --     prove_valid_bytes
+  --     right
+  --     simp [Crypto.CryptoPreds.u_sym_enc_pred]
+  --     prove_is_public
+  --     simp
+  --   · cases hi
+  --     simp [responder] at hstep
+  --     rcases hstep with ⟨_, _, _, _,_,_⟩
+  --     subst_eqs
+  --     and_intros
+  --     prove_valid_bytes
+  --     prove_is_public
+  -- · simp [responder] at hstep
+  --   split at hstep
+  --   · cases hi
+  --     simp [responder] at hstep
+  --     rcases hstep with ⟨_, _, _, _,_,_⟩
+  --     subst_eqs
+  --     simp
+  --   · cases hi
+  --     simp [responder] at hstep
+  --     rcases hstep with ⟨_, _, _, _,_,_⟩
+  --     subst_eqs
+  --     simp
+  -- · simp [responder] at hstep
+  --   split at hstep
+  --   · cases hi
+  --     simp [responder] at hstep
+  --     rcases hstep with ⟨_, _, _, _,_,_⟩
+  --     subst_eqs
+  --     simp
+  --   · cases hi
+  --     simp [responder] at hstep
+  --     rcases hstep with ⟨_, _, _, _,_,_⟩
+  --     subst_eqs
+  --     simp
+  -- · simp [responder] at hstep
+  --   split at hstep
+  --   · cases hi
+  --     simp [responder] at hstep
+  --     rcases hstep with ⟨_, _, _, _,_,_⟩
+  --     subst_eqs
+  --     simp
+  --   · cases hi
+  --     simp [responder] at hstep
+  --     rcases hstep with ⟨_, _, _, _,_,_⟩
+  --     subst_eqs
+  --     simp
+  -- · simp [responder] at hstep
+  --   split at hstep
+  --   · cases hi
+  --     simp [responder] at hstep
+  --     rcases hstep with ⟨_, _, _, _,_,_⟩
+  --     subst_eqs
+  --     and_intros
+  --     · prove_valid_bytes
+  --     · aesop_type_system
+  --     · exists 𝓟ub; and_intros
+  --       prove_has_label
+  --       intros; trivial
+  --   · cases hi
+  --     rcases hstep with ⟨_, _, _, _,_,_⟩
+  --     subst_eqs
+  --     and_intros
+  --     · prove_valid_bytes
+  --     · apply Or.inl
+  --       exists 𝓟ub
+  --       and_intros
+  --       apply HasLabel.Xor
+  --       unfold default NonceInhabited
+  --       dsimp
+  --       simp
+  --       trivial
+  --     · exists 𝓟ub; and_intros
+  --       prove_has_label
+  --       intros; trivial
+
+
 
 theorem valid_initiator_check (tr: 𝑇 Unit Nonce) : valid_exchange.alt Γ tr (initiator_check) := by
   intro_valid_exchange' for initiator_check
@@ -263,4 +285,3 @@ theorem valid_initiator_check (tr: 𝑇 Unit Nonce) : valid_exchange.alt Γ tr (
     simp_all
     exists sa, sb, sna.1
     grind
-  
