@@ -126,6 +126,17 @@ section protocol
 
 end protocol
 
+syntax "prove_priv_msg_default'": tactic
+macro_rules
+  | `(tactic| prove_priv_msg_default') =>
+    `(tactic|
+      exists 𝓟ub; and_intros;
+      prove_valid_bytes;
+      apply Or.inl; prove_is_public; simp;
+      constructor;
+      intros; trivial;
+      )
+
 theorem valid_initiator (a b : ℙ) (n: ℕ) (tr: 𝑇 Unit Nonce) : valid_exchange.alt Γ tr (initiator a b n) := by
   intro_valid_exchange' for initiator with input hi₁ hi₂ state hs₁
   case valid_events =>
@@ -136,12 +147,13 @@ theorem valid_initiator (a b : ℙ) (n: ℕ) (tr: 𝑇 Unit Nonce) : valid_excha
     prove_is_public
     simp
   case valid_priv_msg =>
-    exists 𝓟ub
-    and_intros
-    · prove_valid_bytes
-    · aesop_type_system
-    · constructor
-    · intros; trivial
+    prove_priv_msg_default'
+    -- exists 𝓟ub
+    -- and_intros
+    -- · prove_valid_bytes
+    -- · apply Or.inl; prove_is_public; simp
+    -- · constructor
+    -- · intros; trivial
 
 
 
@@ -167,6 +179,14 @@ lemma enc_pub {tr} {input:𝐵 Unit Nonce} {Γ'} {a b}
 
 set_option maxHeartbeats 600000
 
+
+syntax "prove_priv_msg_default": tactic
+macro_rules
+  | `(tactic| prove_priv_msg_default) =>
+    `(tactic|
+      apply And.intro <;> ( (try (exists 𝓟ub; and_intros; prove_has_label; simp)); (try (apply Or.inl; prove_is_public; simp;)))
+    )
+
 set_option trace.aesop true
 open HasLabel in
 theorem valid_responder (a b : ℙ) (tr: 𝑇 Unit Nonce) : valid_exchange Γ tr (responder a b) := by
@@ -177,16 +197,11 @@ theorem valid_responder (a b : ℙ) (tr: 𝑇 Unit Nonce) : valid_exchange Γ tr
     simp [Crypto.CryptoPreds.u_sym_enc_pred]
     prove_is_public
     simp
-  all_goals (
-    and_intros
-    · apply Or.inl
-      prove_is_public
-      simp
-    · exists 𝓟ub
-      and_intros
-      · prove_has_label
-      · simp
-  )
+  all_goals(prove_priv_msg_default)
+  apply And.intro <;> ( (try (exists 𝓟ub; and_intros; prove_has_label; simp)); (try (apply Or.inl; prove_is_public; simp;)))
+  apply And.intro <;> ( (try (exists 𝓟ub; and_intros; prove_has_label; simp)); (try (apply Or.inl; prove_is_public; simp;)))
+  -- prove_priv_msg_default_x
+  -- prove_priv_msg_default_x
 
   -- · simp [responder] at hstep
   --   · cases hi
@@ -279,3 +294,5 @@ theorem valid_initiator_check (tr: 𝑇 Unit Nonce) : valid_exchange.alt Γ tr (
     simp_all
     exists sa, sb, sna.1
     grind
+  case _ | _ | _ =>
+    prove_priv_msg_default'

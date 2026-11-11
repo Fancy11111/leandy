@@ -34,8 +34,6 @@ macro_rules
       apply is_public_monotone; rotate_left; apply $name; simp
     )
 
-
-
 theorem transition_valid {ch: ChoiceFn} {c: η}
   (op: exchange (α:=α) (η:=η)) (tr tr': Trace α η)
   (hop : valid_exchange.full Γ tr op)
