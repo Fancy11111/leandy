@@ -47,21 +47,8 @@ macro_rules
           simp [List.append_assoc]);
       simp [List.append_assoc];
       simp [List.append_assoc] at *;
-      assumption 
+      assumption
     )
-
-open Lean in
-syntax "prove_valid_trace_event" term:max term:max term:max: tactic
-macro_rules
-  | `(tactic| prove_valid_trace_event $event:term $trace_base:term $valid_trace_supplement:term) =>
-    `(tactic|
-      apply valid_trace_event_monotone _ $event 
-        (a := $trace_base)
-        (b := $event :: $trace_base)
-        (by
-          refine ⟨[$event], ?_⟩
-          rfl) $valid_trace_supplement
-      )
 
 open Lean in
 syntax "prove_valid_trace" term:max term:max term:max: tactic
@@ -70,7 +57,12 @@ macro_rules
     `(tactic|
       constructor;
       assumption';
-      prove_valid_trace_event $event $trace_base $valid_trace_supplement 
+      apply valid_trace_event_monotone _ $event
+        (a := $trace_base)
+        (b := $event :: $trace_base)
+        (by
+          refine ⟨[$event], ?_⟩
+          rfl) $valid_trace_supplement
     )
 
 theorem transition_valid {ch: ChoiceFn} {c: η}
@@ -126,21 +118,21 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
   rcases hop with ⟨⟨valid_bytes, has_label⟩, valid_state, valid_restrictions, valid_events, valid_post_events, ⟨l, valid_priv_msg⟩⟩
 
   have hrestr_evs : up.u_restrictions (evs ++ tr) := by
-    prove_u_restrictions 
-      (evs ++ tr) 
-      (postevs ++ 
-        (.PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) 
+    prove_u_restrictions
+      (evs ++ tr)
+      (postevs ++
+        (.PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState)
         :: [])
-      ) 
-    
+      )
+
   obtain ⟨valid_events_trace, ⟨⟩⟩ :=
-    Traceful.triggerEvents_valid Γ _ evs valid_events h₀ heq_ev hrestr_evs
+    Traceful.triggerEvents_valid _ _ evs valid_events h₀ heq_ev hrestr_evs
   have hrestr_state := by
-    prove_u_restrictions 
+    prove_u_restrictions
       (.SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
       ( postevs ++ .PrivMsgSent outchan privMsg :: .MsgSent msg :: [])
   obtain ⟨valid_state_trace, ⟨⟩⟩ :=
-    Traceful.saveState_valid Γ _ newState valid_state valid_events_trace heq_state hrestr_state
+    Traceful.saveState_valid _ _ newState valid_state valid_events_trace heq_state hrestr_state
 
   have hrestr_msg := by
     prove_u_restrictions
@@ -149,7 +141,7 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
   have hsend_trace : valid_trace Γ (.MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr) := by
     prove_valid_trace (.MsgSent msg) (.SetState (up.u_state_parse.serialize newState) :: evs ++ tr)  (⟨(by prove_valid_monotone valid_bytes), (by prove_public_monotone has_label)⟩)
   obtain ⟨valid_trace_send, ⟨⟩⟩ :=
-    Traceful.send_valid Γ (.SetState (up.u_state_parse.serialize newState) :: evs ++ tr) msg (by prove_valid_monotone valid_bytes) (by prove_public_monotone has_label) valid_state_trace heq_send hrestr_msg
+    Traceful.send_valid _ _ msg (by prove_valid_monotone valid_bytes) (by prove_public_monotone has_label) valid_state_trace heq_send hrestr_msg
 
   have hrestr_privmsg := by
     prove_u_restrictions
@@ -158,7 +150,7 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
   have hsend_priv_trace : valid_trace Γ (.PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr) := by
     prove_valid_trace (.PrivMsgSent outchan privMsg) (.MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr) ⟨l, valid_priv_msg⟩
   obtain ⟨valid_trace_sendPriv, ⟨⟩⟩ :=
-    Traceful.sendPriv_valid Γ (.MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr) outchan privMsg (valid_priv_msg.1) valid_priv_msg.2.2.1 valid_priv_msg.2.2.2 valid_trace_send heq_sendPriv hrestr_privmsg valid_priv_msg.2.1
+    Traceful.sendPriv_valid _ _ outchan privMsg (valid_priv_msg.1) valid_priv_msg.2.2.1 valid_priv_msg.2.2.2 valid_trace_send heq_sendPriv hrestr_privmsg valid_priv_msg.2.1
 
   have hrestr_post : up.u_restrictions
       (postevs ++ (.PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)) := by
