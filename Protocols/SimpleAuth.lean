@@ -148,12 +148,6 @@ theorem valid_initiator (a b : ℙ) (n: ℕ) (tr: 𝑇 Unit Nonce) : valid_excha
     simp
   case valid_priv_msg =>
     prove_priv_msg_default'
-    -- exists 𝓟ub
-    -- and_intros
-    -- · prove_valid_bytes
-    -- · apply Or.inl; prove_is_public; simp
-    -- · constructor
-    -- · intros; trivial
 
 
 
@@ -198,94 +192,6 @@ theorem valid_responder (a b : ℙ) (tr: 𝑇 Unit Nonce) : valid_exchange Γ tr
     prove_is_public
     simp
   all_goals(prove_priv_msg_default)
-  apply And.intro <;> ( (try (exists 𝓟ub; and_intros; prove_has_label; simp)); (try (apply Or.inl; prove_is_public; simp;)))
-  apply And.intro <;> ( (try (exists 𝓟ub; and_intros; prove_has_label; simp)); (try (apply Or.inl; prove_is_public; simp;)))
-  -- prove_priv_msg_default_x
-  -- prove_priv_msg_default_x
-
-  -- · simp [responder] at hstep
-  --   · cases hi
-  --     simp [responder] at hstep
-  --     rcases hstep with ⟨_, _, _, _,_,_⟩
-  --     subst_eqs
-  --     and_intros
-  --     prove_valid_bytes
-  --     right
-  --     simp [Crypto.CryptoPreds.u_sym_enc_pred]
-  --     prove_is_public
-  --     simp
-  --   · cases hi
-  --     simp [responder] at hstep
-  --     rcases hstep with ⟨_, _, _, _,_,_⟩
-  --     subst_eqs
-  --     and_intros
-  --     prove_valid_bytes
-  --     prove_is_public
-  -- · simp [responder] at hstep
-  --   split at hstep
-  --   · cases hi
-  --     simp [responder] at hstep
-  --     rcases hstep with ⟨_, _, _, _,_,_⟩
-  --     subst_eqs
-  --     simp
-  --   · cases hi
-  --     simp [responder] at hstep
-  --     rcases hstep with ⟨_, _, _, _,_,_⟩
-  --     subst_eqs
-  --     simp
-  -- · simp [responder] at hstep
-  --   split at hstep
-  --   · cases hi
-  --     simp [responder] at hstep
-  --     rcases hstep with ⟨_, _, _, _,_,_⟩
-  --     subst_eqs
-  --     simp
-  --   · cases hi
-  --     simp [responder] at hstep
-  --     rcases hstep with ⟨_, _, _, _,_,_⟩
-  --     subst_eqs
-  --     simp
-  -- · simp [responder] at hstep
-  --   split at hstep
-  --   · cases hi
-  --     simp [responder] at hstep
-  --     rcases hstep with ⟨_, _, _, _,_,_⟩
-  --     subst_eqs
-  --     simp
-  --   · cases hi
-  --     simp [responder] at hstep
-  --     rcases hstep with ⟨_, _, _, _,_,_⟩
-  --     subst_eqs
-  --     simp
-  -- · simp [responder] at hstep
-  --   split at hstep
-  --   · cases hi
-  --     simp [responder] at hstep
-  --     rcases hstep with ⟨_, _, _, _,_,_⟩
-  --     subst_eqs
-  --     and_intros
-  --     · prove_valid_bytes
-  --     · aesop_type_system
-  --     · exists 𝓟ub; and_intros
-  --       prove_has_label
-  --       intros; trivial
-  --   · cases hi
-  --     rcases hstep with ⟨_, _, _, _,_,_⟩
-  --     subst_eqs
-  --     and_intros
-  --     · prove_valid_bytes
-  --     · apply Or.inl
-  --       exists 𝓟ub
-  --       and_intros
-  --       apply HasLabel.Xor
-  --       unfold default NonceInhabited
-  --       dsimp
-  --       simp
-  --       trivial
-  --     · exists 𝓟ub; and_intros
-  --       prove_has_label
-  --       intros; trivial
-
 
 
 theorem valid_initiator_check (tr: 𝑇 Unit Nonce) : valid_exchange.alt Γ tr (initiator_check) := by
