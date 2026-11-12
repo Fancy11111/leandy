@@ -117,6 +117,9 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
 
   rcases hop with ⟨⟨valid_bytes, has_label⟩, valid_state, valid_restrictions, valid_events, valid_post_events, ⟨l, valid_priv_msg⟩⟩
 
+  -- the section below is showing that trevs, trstate',... are valid traces,
+  -- and that the are equal to evs ++ tr, (SetState _) :: (evs ++ tr) and so on
+
   have hrestr_evs : up.u_restrictions (evs ++ tr) := by
     prove_u_restrictions
       (evs ++ tr)
@@ -124,9 +127,9 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
         (.PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState)
         :: [])
       )
-
   obtain ⟨valid_events_trace, ⟨⟩⟩ :=
     Traceful.triggerEvents_valid _ _ evs valid_events h₀ heq_ev hrestr_evs
+
   have hrestr_state := by
     prove_u_restrictions
       (.SetState (up.u_state_parse.serialize newState) :: evs ++ tr)
