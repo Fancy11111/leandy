@@ -207,38 +207,23 @@ namespace Traceful
   --         exact MsgSent m
   --         assumption
   --       exact rfl
+
+
   lemma sendPriv_valid {ch: ChoiceFn} {l: ℓ α η}
     (tr: Trace α η) (chan: η) (m : BytesEq α η)
-    (hm : valid_bytes Γ m tr)
-    (hl : HasLabel Γ tr m l)
-    (hc : Γ.Λ {chan} ≤[tr] l)
+    (hpriv : (Crypto.valid_bytes Γ m tr ∧ CryptoPreds.priv_send_pred Γ m chan tr ∧
+      HasLabel Γ tr m l ∧
+      Γ.Λ {chan} ≤[tr] l))
     (h₀ : valid_trace Γ tr)
     (hs : Traceful.sendPriv chan m ch tr = some ((), tr'))
     (hr : up.u_restrictions (.PrivMsgSent chan m :: tr))
-    (hpred : CryptoPreds.priv_send_pred Γ m chan tr)
     : valid_trace Γ tr' ∧ tr' = (.PrivMsgSent chan m :: tr) := by
         simp only [sendPriv, modify, modifyGet, MonadStateOf.modifyGet, monadLift, MonadLift.monadLift, StateT.modifyGet, pure] at hs
         subst_eqs
         and_intros
         · constructor; assumption
-          · refine valid_trace_event_monotone Γ (PrivMsgSent chan m) (by apply List.suffix_cons) ⟨l, hm, hpred, hl, hc⟩
+          · refine valid_trace_event_monotone Γ (PrivMsgSent chan m) (by apply List.suffix_cons) ⟨l, hpriv⟩
           · exact h₀
         · rfl
-        -- longer version:
-        -- · constructor; assumption
-        --   apply valid_trace_event_monotone;
-        --   exact Std.IsPreorder.le_refl (.PrivMsgSent chan m :: tr)
-        --   refine exists_and_left.mpr ?_
-        --   and_intros
-        --   · aapply valid_bytes_monotone; apply List.suffix_cons
-        --   · exists l
-        --     and_intros
-        --     · refine hasLabel_monotone Γ ?_ (PrivMsgSent chan m :: tr) l m ?_ ?_
-        --       · exact tr
-        --       · exact List.suffix_cons _ _
-        --       · exact hl
-        --     · aapply Label.less_public_than_monotone
-        --       apply List.suffix_cons
-        --   · exact h₀
-        -- exact rfl
+
 end Traceful

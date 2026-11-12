@@ -150,7 +150,7 @@ theorem transition_valid {ch: ChoiceFn} {c: η}
   have hsend_priv_trace : valid_trace Γ (.PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr) := by
     prove_valid_trace (.PrivMsgSent outchan privMsg) (.MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr) ⟨l, valid_priv_msg⟩
   obtain ⟨valid_trace_sendPriv, ⟨⟩⟩ :=
-    Traceful.sendPriv_valid _ _ outchan privMsg (valid_priv_msg.1) valid_priv_msg.2.2.1 valid_priv_msg.2.2.2 valid_trace_send heq_sendPriv hrestr_privmsg valid_priv_msg.2.1
+    Traceful.sendPriv_valid _ _ _ privMsg valid_priv_msg valid_trace_send heq_sendPriv hrestr_privmsg
 
   have hrestr_post : up.u_restrictions
       (postevs ++ (.PrivMsgSent outchan privMsg :: .MsgSent msg :: .SetState (up.u_state_parse.serialize newState) :: evs ++ tr)) := by
