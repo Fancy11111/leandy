@@ -205,9 +205,9 @@ macro_rules
 
 open Lean in
 syntax "intro_valid_exchange'" "for" ident
-  ("with" rintroPat rintroPat rintroPat rintroPat rintroPat (rintroPat rintroPat rintroPat)?)?: tactic
+  ("with" rintroPat rintroPat rintroPat rintroPat rintroPat ("and" rintroPat rintroPat rintroPat)?)?: tactic
 macro_rules
-  | `(tactic| intro_valid_exchange' for $name with $input $hi₁ $hi₂ $state $hs₁ $chanIn $privInput $hpi) =>
+  | `(tactic| intro_valid_exchange' for $name with $input $hi₁ $hi₂ $state $hs₁ and $chanIn $privInput $hpi) =>
     `(tactic|
       rintro msg privMsg newState evs postevs chanOut
         $input $hi₁ $hi₂ $chanIn $privInput $hpi $state $hs₁ hstep;
@@ -224,5 +224,5 @@ macro_rules
           (try trivial)
         )
     )
-  | `(tactic| intro_valid_exchange' for $name with $input $hi₁ $hi₂ $state $hs₁) => `(tactic| intro_valid_exchange' for $name with $input $hi₁ $hi₂ $state $hs₁ _ _ _)
-  | `(tactic| intro_valid_exchange' for $name) => `(tactic| intro_valid_exchange' for $name with _ _ _ _ _ _ _ _)
+  | `(tactic| intro_valid_exchange' for $name with $input $hi₁ $hi₂ $state $hs₁) => `(tactic| intro_valid_exchange' for $name with $input $hi₁ $hi₂ $state $hs₁ and _ _ _)
+  | `(tactic| intro_valid_exchange' for $name) => `(tactic| intro_valid_exchange' for $name with _ _ _ _ _ and _ _ _)
