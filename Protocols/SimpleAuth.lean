@@ -138,7 +138,7 @@ macro_rules
       )
 
 theorem valid_initiator (a b : ℙ) (n: ℕ) (tr: 𝑇 Unit Nonce) : valid_exchange.alt Γ tr (initiator a b n) := by
-  intro_valid_exchange' for initiator with input hi₁ hi₂ state hs₁
+  intro_valid_exchange' for initiator with input hi₁ hi₂ state hs₁ and _ _ _
   case valid_events =>
     intro ev htr; simp at htr; cases htr
     simp [Crypto.UserPreds.u_valid_event, event_preds]
