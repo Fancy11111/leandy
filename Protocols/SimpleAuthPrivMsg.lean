@@ -3,15 +3,20 @@ import Leandy
 inductive Nonce
   | Nat: ℕ → Nonce
   | Chan (a b:ℙ): Nonce
-  | Sk (n: ℕ): Nonce
+  | Sk (a b:ℙ) (n: ℕ): Nonce
 deriving DecidableEq, Repr
+
+structure NewKeyNonce where
+  n: ℕ
+
+derive_parsable (Unit, Nonce) for NewKeyNonce
 
 instance NonceInhabited : Inhabited Nonce where default := .Nat 0
 
 @[simp, aesop (rule_sets := [protocol]) norm]
 def Γ : LabelingEnv Unit Nonce := LabelingEnv.from_singles fun
   | .Chan a b => .meet (.principal_label a) (.principal_label b)
-  | .Sk _ => 𝓢ec
+  | .Sk a b _ => .meet (.principal_label a) (.principal_label b)
   | _ => 𝓟ub
 
 namespace Event
@@ -23,9 +28,9 @@ end Event
 @[aesop (rule_sets := [protocol]) norm]
 def event_preds (_ : LabelingEnv Unit Nonce) (e: Event Unit Nonce) (tr : 𝑇 Unit Nonce) : Prop :=
   match e.tag with
-  | "start" => ∃ a b na,
-                 na ≠ .fail ∧
-                 e.content = (Event.start a b na).content
+  | "start" => ∃ a b n,
+                 n ≠ .fail ∧
+                 e.content = (Event.start a b n).content
   | "done" => ∃ a b na,
               na ≠ .fail ∧
               e.content = (Event.done a b na).content ∧
@@ -99,31 +104,39 @@ instance : Coe (ℕ) (Nonce) where
 section protocol
 
   @[aesop (rule_sets := [protocol]) norm]
-  def sk (a : BytesEq.NonFail Unit Nonce): BytesEq Unit Nonce := BytesEq.key () .SymEnc a
+  def sk (a b : ℙ) (n : ℕ): BytesEq Unit Nonce := BytesEq.key () .SymEnc (Nonce.Sk a b n)
+  def sk'(n : BytesEq.NonFail Unit Nonce): BytesEq Unit Nonce := BytesEq.key () .SymEnc n
 
-  def initiator (a b : ℙ) (n: ℕ) : exchange Unit Nonce := λ _ _ _ _ _ ↦
-    let message := [!(); a, b, (Nonce.Sk n)]
+  open Parsing Parsable in
+  def initiator (a b : ℙ) (n : ℕ): exchange Unit Nonce := λ _ _ _ _ _ ↦
+    let new_key := (Nonce.Sk a b n)
+    let nnk := (NewKeyNonce.mk n)
+    let message := [!(); a, b,  serialize nnk]
     { message := .fail,
       chan := (.Chan a b),
       priv_message := message,
-      state :=  .Init a b ⟨Nonce.Sk n, BytesEq.nonce_fail _⟩,
-      events := [.Event $ .start a b (Nonce.Sk n) ] }
-
-  @[aesop (rule_sets := [protocol]) norm]
-  def responder (a b : ℙ): exchange Unit Nonce := λ _ _ chanIn privInput _ ↦
-    let a' := privInput.proj_1 ()
-    let b' := privInput.proj_2 () |> BytesEq.proj_1 ()
-    let na := privInput.proj_2 () |> BytesEq.proj_2 ()
-    if b = b' ∧ a = a' ∧ chanIn = (.Chan a b) then
-      { chan := (.Chan a b), message := [!(); na, a'].symenc () (na) }
-    else default
+      state :=  .Init a b ⟨new_key, BytesEq.nonce_fail _⟩,
+      events := [.Event $ .start a b new_key ] }
 
   open Parsing Parsable in
   @[aesop (rule_sets := [protocol]) norm]
-  def initiator_check : exchange Unit Nonce := λ _ _ chanIn privInput state => Id.run do
+  def responder (a b : ℙ): exchange Unit Nonce := λ _ _ chanIn privInput _ ↦ Atom.fromOption do
+    let a' := privInput.proj_1 ()
+    let b' := privInput.proj_2 () |> BytesEq.proj_1 ()
+    let some nnk := do_parse (privInput.proj_2 () |> BytesEq.proj_2 ()) as NewKeyNonce | default
+    
+    if b = b' ∧ a = a' ∧ chanIn = (.Chan a b) then
+      return { chan := (.Chan a b), message := [!(); serialize nnk, a'].symenc () (sk a b nnk.n)}
+    return default
+
+  open Parsing Parsable in
+  @[aesop (rule_sets := [protocol]) norm]
+  def initiator_check : exchange Unit Nonce := λ _ input _ _ state => Atom.fromOption do
     let .Init sa sb sn := state | return default
-    let dec := privInput.symdec () (sk sn)
-    if chanIn = (.Chan sa sb) ∧ some (sa, sn) = do_parse dec as (_ × 𝑩 _ _) then
+    let dec := input.symdec () (sk' sn)
+    let some m := do_parse dec as (𝑩 Unit Nonce × ℙ) | default
+
+    if m.1 = sn ∧ m.2 = sa then
       return { events := [.Event $ .done sa sb sn] }
     return default
 
@@ -140,34 +153,42 @@ macro_rules
       intros; trivial;
       )
 
-theorem valid_initiator (a b : ℙ) (n: ℕ) (tr: 𝑇 Unit Nonce) : valid_exchange.alt Γ tr (initiator a b n) := by
-  intro_valid_exchange' for initiator with input hi₁ hi₂ state hs₁
+theorem valid_initiator (a b : ℙ) (n : ℕ) (tr: 𝑇 Unit Nonce) : valid_exchange.alt Γ tr (initiator a b n) := by
+  intro_valid_exchange' for initiator with input hi₁ hi₂ state hs₁ and chanIn privInput hpi
   case valid_events =>
     intro ev htr; simp at htr; cases htr
-    simp [Crypto.UserPreds.u_valid_event, event_preds]
-    exists a, b, (.nonce (.Sk n)); simp
+    simp
+    simp [Crypto.UserPreds.u_valid_event]
+    simp [event_preds]
+     
+    exists a, b, (.nonce (.Sk a b n));
+    · and_intros
+      · simp 
+      · simp 
   case valid_priv_msg =>
-    exists 𝓢ec;
+    --exists 𝓟ub;
+    exists (𝓟 a).meet (𝓟 b)
     simp;
     apply And.intro;
+    prove_valid_bytes 
+    apply And.intro;
+    
     apply Or.inr;
     constructor;
-    · apply And.intro
-      · aesop_type_system
-      · sorry
-
-
+    · apply HasLabel.Tuple' 
+      
+    
 
 
 
 open HasValidPublic in
 @[aesop (rule_sets := [protocol]) safe apply]
-lemma enc_pub {tr} {input:𝐵 Unit Nonce} {Γ'} {n}
+lemma enc_pub {tr} {input:𝐵 Unit Nonce} {Γ'} {a} {b} {n}
   (h': Γ' = Γ)
   (h: is_valid_public Γ input tr) :
   BytesEq.ValidPublicBytes Γ'
   (BytesEq.symenc () (.tuple () ((input.proj_2 ()).proj_2 ()) (input.proj_1 ()))
-    (.key () .SymEnc (.nonce (.Sk n))))
+    (.key () .SymEnc (.nonce (.Sk a b n))))
   ([] ++ tr) := by
   cases h';
   aapply is_valid_public_monotone at h
@@ -175,9 +196,11 @@ lemma enc_pub {tr} {input:𝐵 Unit Nonce} {Γ'} {n}
   constructor
   · prove_valid_bytes
     right; simp[Crypto.CryptoPreds.u_sym_enc_pred]
+
   · rw[is_public_is_HasLabelAt_pub] at *
     apply HasLabelAt.SymEnc <;> try prove_has_label_at
     simp
+    intros; assumption
   rfl
 
 set_option maxHeartbeats 600000
@@ -195,8 +218,12 @@ open HasLabel in
 theorem valid_responder (a b : ℙ) (tr: 𝑇 Unit Nonce) : valid_exchange Γ tr (responder a b) := by
   intro_valid_exchange
   <;> (simp[responder] at hstep; split at hstep <;> (cases hi; simp[] at hstep; rcases hstep with ⟨_, _, _, _,_,_⟩; subst_eqs; try simp))
-  · and_intros
-    · sorry
+  · expose_names; 
+    obtain ⟨pa, ⟨pb, pn⟩⟩ := h;
+    and_intros
+    · rewrite[pa]
+      rewrite[pb]
+      rewrite[pn]
     · sorry
   · apply And.intro
     · apply Or.inr;
