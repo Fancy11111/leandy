@@ -221,6 +221,7 @@ macro_rules
           (try simp only [List.not_mem_nil, false_implies, forall_const]);
           (try simp only [UserPreds.u_restrictions]);
           (try change True);
+          (try (exists 𝓟ub; simp; intros; trivial; done));
           (try trivial)
         )
     )
