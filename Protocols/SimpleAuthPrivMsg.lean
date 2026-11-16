@@ -1,24 +1,33 @@
 import Leandy
 
+set_option maxHeartbeats 4000000
+set_option synthInstance.maxHeartbeats 1000000
+
 inductive Nonce
   | Nat: ℕ → Nonce
   | Chan (a b:ℙ): Nonce
   | Sk (a b:ℙ) (n: ℕ): Nonce
 deriving DecidableEq, Repr
 
-structure NewKeyNonce where
-  n: ℕ
-
-derive_parsable (Unit, Nonce) for NewKeyNonce
-
 instance NonceInhabited : Inhabited Nonce where default := .Nat 0
 
-@[simp, aesop (rule_sets := [protocol]) norm]
+@[aesop (rule_sets := [protocol]) norm]
 def Γ : LabelingEnv Unit Nonce := LabelingEnv.from_singles fun
-  | .Chan a b => .meet (.principal_label a) (.principal_label b)
-  | .Sk a b _ => .meet (.principal_label a) (.principal_label b)
+  | .Chan a b => (𝓟 a) ⊔ (𝓟 b)
+  | .Sk a b _ => (𝓟 a) ⊔ (𝓟 b)
   | _ => 𝓟ub
 
+@[simp]
+lemma Γ_sk (a b : ℙ) (n : ℕ) :
+    Γ.Λ {.Sk a b n} = (𝓟 a) ⊔ (𝓟 b) := by
+  unfold Γ
+  simp
+
+@[simp]
+lemma Γ_chan (a b : ℙ) :
+    Γ.Λ {.Chan a b} = (𝓟 a) ⊔ (𝓟 b) := by
+  unfold Γ
+  simp
 namespace Event
   variable (a b : ℙ) (na : 𝐵 Unit Nonce)
   abbrev start : Event Unit Nonce := ⟨"start", [!(); na, .princ a, .princ b]⟩
@@ -38,8 +47,8 @@ def event_preds (_ : LabelingEnv Unit Nonce) (e: Event Unit Nonce) (tr : 𝑇 Un
   | _ => true
 
 @[simp]
-instance instCrypotPreds: Crypto.CryptoPreds Unit Nonce where
-  u_sym_enc_pred Γ _ m k tr := ∃ a b, m = [!(); a , b]
+instance instCryptoPreds: Crypto.CryptoPreds Unit Nonce where
+  u_sym_enc_pred _ _ m k _ := ∃ a b : ℙ, m = [!(); k, .princ a, .princ b]
 
 inductive State where
   | Init (a b : ℙ) (na : BytesEq.NonFail Unit Nonce)
@@ -60,7 +69,7 @@ instance instHasValid: Crypto.HasValid Unit Nonce State where
      · apply_rules[And.intro, Crypto.valid_bytes_monotone, List.IsSuffix.mem]
      · grind
 
-@[aesop (rule_sets := [protocol]) norm]
+@[simp, aesop (rule_sets := [protocol]) norm]
 instance instUserPreds : Crypto.UserPreds Unit Nonce where
   u_state := State
   u_valid_event := event_preds
@@ -70,7 +79,7 @@ instance instUserPreds : Crypto.UserPreds Unit Nonce where
     grind[List.IsSuffix.mem]
 
 abbrev authentication (tr : 𝑇 Unit Nonce) : Prop :=
-  ∀ rk a b, (.Event $ .done a b rk) ∈ tr → (.Event $ .start a b rk) ∈ tr
+  ∀ n a b, (.Event $ .done a b n) ∈ tr → (.Event $ .start a b n) ∈ tr
 
 open BytesEq in
 theorem protocol_authentication (h: Crypto.valid_trace Γ tr) : authentication tr := by
@@ -78,174 +87,99 @@ theorem protocol_authentication (h: Crypto.valid_trace Γ tr) : authentication t
   obtain ⟨a₂, b₂, rk₁, hfail, heq, hev⟩ := Crypto.valid_trace_mem _ _ _ h hin
   grind
 
-
-/-! # Simple auth
-```
-    A -> B :  A ⋅ B ⋅ Na
-    B -> A :  ⟨ Na ⋅ A ⟩_(SK A B)
-```
--/
-
 @[simp, aesop (rule_sets := [protocol]) norm]
 instance : Inhabited (Crypto.UserPreds.u_state Unit Nonce) := ⟨.Null⟩
 
-@[aesop (rule_sets := [protocol]) norm]
-instance [DecidableEq α] [DecidableEq η] [Parameter α]: Coe (Principal) (BytesEq α η) where
-  coe := .princ
-
-@[aesop (rule_sets := [protocol]) norm]
-instance [DecidableEq α] [DecidableEq η] [Parameter α]: Coe (η) (BytesEq α η) where
-  coe := .nonce
-
-@[aesop (rule_sets := [protocol]) norm]
-instance : Coe (ℕ) (Nonce) where
-  coe := .Nat
-
 section protocol
 
-  @[aesop (rule_sets := [protocol]) norm]
-  def sk (a b : ℙ) (n : ℕ): BytesEq Unit Nonce := BytesEq.key () .SymEnc (Nonce.Sk a b n)
-  def sk'(n : BytesEq.NonFail Unit Nonce): BytesEq Unit Nonce := BytesEq.key () .SymEnc n
-
-  open Parsing Parsable in
-  def initiator (a b : ℙ) (n : ℕ): exchange Unit Nonce := λ _ _ _ _ _ ↦
-    let new_key := (Nonce.Sk a b n)
-    let nnk := (NewKeyNonce.mk n)
-    let message := [!(); a, b,  serialize nnk]
+  abbrev sk (k : 𝐵 Unit Nonce) : 𝐵 Unit Nonce := BytesEq.key () .SymEnc k
+  def initiator (a b : ℙ) (n : ℕ) : exchange Unit Nonce := λ _ _ _ _ _ ↦
+    let nn : 𝐵 Unit Nonce := BytesEq.nonce (.Sk a b n)
+    let bn := BytesEq.const (.Nat n)
+    let message : 𝐵 Unit Nonce := [!(); bn, nn]
     { message := .fail,
-      chan := (.Chan a b),
+      chan := .Chan a b,
       priv_message := message,
-      state :=  .Init a b ⟨new_key, BytesEq.nonce_fail _⟩,
-      events := [.Event $ .start a b new_key ] }
+      state := .Init a b ⟨nn, BytesEq.nonce_fail _⟩,
+      events := [.Event $ .start a b nn] }
 
-  open Parsing Parsable in
-  @[aesop (rule_sets := [protocol]) norm]
-  def responder (a b : ℙ): exchange Unit Nonce := λ _ _ chanIn privInput _ ↦ Atom.fromOption do
-    let a' := privInput.proj_1 ()
-    let b' := privInput.proj_2 () |> BytesEq.proj_1 ()
-    let some nnk := do_parse (privInput.proj_2 () |> BytesEq.proj_2 ()) as NewKeyNonce | default
-    
-    if b = b' ∧ a = a' ∧ chanIn = (.Chan a b) then
-      return { chan := (.Chan a b), message := [!(); serialize nnk, a'].symenc () (sk a b nnk.n)}
-    return default
+  def responder (a b : ℙ) : exchange Unit Nonce := λ _ _ chanIn privInput _ ↦
+    if chanIn = .Chan a b ∧ privInput ≠ .fail then
+      match do_parse (privInput.proj_1 ()) as ℕ with
+      | some n =>
+        let k : 𝐵 Unit Nonce := BytesEq.nonce (.Sk a b n)
+        { message := BytesEq.symenc ()
+            [!(); k, BytesEq.princ a, BytesEq.princ b] (sk k) }
+      | none => default
+    else default
 
-  open Parsing Parsable in
-  @[aesop (rule_sets := [protocol]) norm]
   def initiator_check : exchange Unit Nonce := λ _ input _ _ state => Atom.fromOption do
     let .Init sa sb sn := state | return default
-    let dec := input.symdec () (sk' sn)
-    let some m := do_parse dec as (𝑩 Unit Nonce × ℙ) | default
-
-    if m.1 = sn ∧ m.2 = sa then
+    let dec := input.symdec () (sk sn)
+    if dec = [!(); (sn : 𝐵 Unit Nonce), BytesEq.princ sa, BytesEq.princ sb] then
       return { events := [.Event $ .done sa sb sn] }
     return default
 
 end protocol
 
-syntax "prove_priv_msg_default'": tactic
-macro_rules
-  | `(tactic| prove_priv_msg_default') =>
-    `(tactic|
-      exists 𝓟ub; and_intros;
-      prove_valid_bytes;
-      apply Or.inl; prove_is_public; simp;
-      constructor;
-      intros; trivial;
-      )
+lemma valid_priv_msg_default (tr : 𝑇 Unit Nonce) (chan : Nonce) :
+    ∃ l, Crypto.valid_bytes Γ .fail tr ∧
+      Crypto.CryptoPreds.priv_send_pred Γ .fail chan tr ∧
+      HasLabel Γ tr .fail l ∧ Γ.Λ {chan} ≤[tr] l := by
+  exists 𝓟ub;
+  simp
 
-theorem valid_initiator (a b : ℙ) (n : ℕ) (tr: 𝑇 Unit Nonce) : valid_exchange.alt Γ tr (initiator a b n) := by
-  intro_valid_exchange' for initiator with input hi₁ hi₂ state hs₁ and chanIn privInput hpi
+theorem valid_initiator (a b : ℙ) (n : ℕ) (tr : 𝑇 Unit Nonce) :
+    valid_exchange.alt Γ tr (initiator a b n) := by
+  intro_valid_exchange' for initiator with input hi₁ hi₂ state hs₁
   case valid_events =>
-    intro ev htr; simp at htr; cases htr
-    simp
-    simp [Crypto.UserPreds.u_valid_event]
+    intro ev hev
+    simp [] at hev
+    subst hev
     simp [event_preds]
-     
-    exists a, b, (.nonce (.Sk a b n));
-    · and_intros
-      · simp 
-      · simp 
-  case valid_priv_msg =>
-    --exists 𝓟ub;
-    exists (𝓟 a).meet (𝓟 b)
-    simp;
-    apply And.intro;
-    prove_valid_bytes 
-    apply And.intro;
-    
-    apply Or.inr;
-    constructor;
-    · apply HasLabel.Tuple' 
-      
-    
-
-
-
-open HasValidPublic in
-@[aesop (rule_sets := [protocol]) safe apply]
-lemma enc_pub {tr} {input:𝐵 Unit Nonce} {Γ'} {a} {b} {n}
-  (h': Γ' = Γ)
-  (h: is_valid_public Γ input tr) :
-  BytesEq.ValidPublicBytes Γ'
-  (BytesEq.symenc () (.tuple () ((input.proj_2 ()).proj_2 ()) (input.proj_1 ()))
-    (.key () .SymEnc (.nonce (.Sk a b n))))
-  ([] ++ tr) := by
-  cases h';
-  aapply is_valid_public_monotone at h
-  obtain ⟨h', h⟩ := h
-  constructor
-  · prove_valid_bytes
-    right; simp[Crypto.CryptoPreds.u_sym_enc_pred]
-
-  · rw[is_public_is_HasLabelAt_pub] at *
-    apply HasLabelAt.SymEnc <;> try prove_has_label_at
+    exists a, b, BytesEq.nonce (.Sk a b n)
     simp
-    intros; assumption
-  rfl
+  case valid_priv_msg =>
+    refine ⟨Γ.Λ {.Sk a b n}, ?_, ?_, ?_, ?_⟩
+    · prove_valid_bytes
+    · right
+      trivial
+    · prove_has_label
+      simp
+    · intro _ _ h
+      simp [] at *
+      assumption
 
-set_option maxHeartbeats 600000
+lemma ciphertext_is_public (a b : ℙ) (k : 𝐵 Unit Nonce) (l : ℓ Unit Nonce)
+    (tr : 𝑇 Unit Nonce) (hk : HasLabel Γ tr k l) :
+    (BytesEq.symenc () [!(); k, BytesEq.princ a, BytesEq.princ b] (sk k)).is_public Γ tr := by
+  refine ⟨𝓟ub, ?_, ?_⟩
+  · apply HasLabel.SymEnc
+    · aesop_type_system
+    · aesop_type_system
+    · intro _ _ h
+      trivial
+  · simp
 
+theorem valid_responder (a b : ℙ) (tr : 𝑇 Unit Nonce) :
+    valid_exchange.alt Γ tr (responder a b) := by
+  intro_valid_exchange' for responder with input hi₁ hi₂ state hs₁
+  case h_1.valid_bytes =>
+    apply Crypto.valid_bytes_symenc
+    · prove_valid_bytes
+    · prove_valid_bytes
+    · right
+      exact ⟨a, b, rfl⟩
+  case h_1.has_label =>
+    apply ciphertext_is_public a b _ _ _ (HasLabel.Xor rfl)
 
-syntax "prove_priv_msg_default": tactic
-macro_rules
-  | `(tactic| prove_priv_msg_default) =>
-    `(tactic|
-      apply And.intro <;> ( (try (exists 𝓟ub; and_intros; prove_has_label; simp)); (try (apply Or.inl; prove_is_public; simp;)))
-    )
-
-set_option trace.aesop true
-open HasLabel in
-theorem valid_responder (a b : ℙ) (tr: 𝑇 Unit Nonce) : valid_exchange Γ tr (responder a b) := by
-  intro_valid_exchange
-  <;> (simp[responder] at hstep; split at hstep <;> (cases hi; simp[] at hstep; rcases hstep with ⟨_, _, _, _,_,_⟩; subst_eqs; try simp))
-  · expose_names; 
-    obtain ⟨pa, ⟨pb, pn⟩⟩ := h;
-    and_intros
-    · rewrite[pa]
-      rewrite[pb]
-      rewrite[pn]
-    · sorry
-  · apply And.intro
-    · apply Or.inr;
-      constructor;
-    · exists 𝓟ub;
-      apply And.intro;
-      · prove_has_label;
-      · intros; trivial;
-  · prove_priv_msg_default
-
-
-      -- prove_valid_bytes
-      -- simp [Crypto.CryptoPreds.u_sym_enc_pred]
-      -- prove_is_public
-      -- simp
-
-
-theorem valid_initiator_check (tr: 𝑇 Unit Nonce) : valid_exchange.alt Γ tr (initiator_check) := by
-  intro_valid_exchange' for initiator_check
-  case valid_events sa sb sna _ _ =>
-    simp_all
-    exists sa, sb, sna.1
-    grind
-  case _ | _ | _ =>
-    prove_priv_msg_default'
+theorem valid_initiator_check (tr : 𝑇 Unit Nonce) :
+    valid_exchange.alt Γ tr (initiator_check) := by
+  intro_valid_exchange' for initiator_check with input hi₁ hi₂ state hs₁ and chanIn privInput hpi
+  case h_1.isTrue.valid_events =>
+    rename_i _ sa sb sn h
+    intro ev hev
+    simp only [List.mem_singleton] at hev
+    subst hev
+    simp only [event_preds]
+    exact ⟨sa, sb, sn, sn.prop, rfl, hs₁.2⟩
